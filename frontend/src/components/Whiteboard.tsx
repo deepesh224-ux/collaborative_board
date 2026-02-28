@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Excalidraw } from '@excalidraw/excalidraw';
 import '@excalidraw/excalidraw/index.css';
 import { Chat } from './Sidebar/Chat';
@@ -8,11 +8,12 @@ import { ShareRoom } from './Sidebar/ShareRoom';
 import { MiniGames } from './Sidebar/MiniGames';
 import { UserList } from './presence/UserList';
 import { useP2P } from '../hooks/useP2P';
-import { Save, Loader2, Check } from 'lucide-react';
+import { Save, Loader2, Check, ArrowLeft } from 'lucide-react';
 
 // We maintain a reference to the Excalidraw API to update the scene from Yjs
 export function Whiteboard({ isDarkModeGlobal }: { isDarkModeGlobal: boolean }) {
     const { roomId } = useParams<{ roomId: string }>();
+    const navigate = useNavigate();
     const excalidrawAPI = useRef<any>(null);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { ydoc } = useP2P(`collaborative-whiteboard-${roomId || 'default'}`);
@@ -27,6 +28,14 @@ export function Whiteboard({ isDarkModeGlobal }: { isDarkModeGlobal: boolean }) 
     useEffect(() => {
         setIsDarkMode(isDarkModeGlobal);
     }, [isDarkModeGlobal]);
+
+    useEffect(() => {
+        if (isDarkMode) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    }, [isDarkMode]);
 
     // Yjs shared map for elements
     const yElements = ydoc.getMap<any>('elements');
@@ -66,17 +75,21 @@ export function Whiteboard({ isDarkModeGlobal }: { isDarkModeGlobal: boolean }) 
     }, [yElements]);
 
 
-    const onChange = useCallback((elements: readonly any[]) => {
+    const onChange = useCallback((elements: readonly any[], appState: any) => {
+        // Sync theme from Excalidraw to our local state if it changes
+        if (appState.theme !== (isDarkMode ? 'dark' : 'light')) {
+            setIsDarkMode(appState.theme === 'dark');
+        }
+
         ydoc.transact(() => {
             elements.forEach(el => {
-                // To prevent infinite loops, only update if the version changed or it's new
                 const existing = yElements.get(el.id);
                 if (!existing || existing.version < el.version) {
                     yElements.set(el.id, el);
                 }
             });
         });
-    }, [yElements, ydoc]);
+    }, [yElements, ydoc, isDarkMode]);
 
     return (
         <div className="flex h-screen w-screen overflow-hidden bg-slate-50 dark:bg-[#0f1115] transition-colors duration-300">
@@ -100,7 +113,15 @@ export function Whiteboard({ isDarkModeGlobal }: { isDarkModeGlobal: boolean }) 
                 />
 
                 {/* Custom top-left Action Bar overlay */}
-                <div className="absolute top-4 left-[60px] z-[50]">
+                <div className="absolute top-4 left-[60px] z-[50] flex items-center gap-3">
+                    <button
+                        onClick={() => navigate('/dashboard')}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm shadow-lg transition-all border bg-white/90 dark:bg-zinc-800/90 border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-200 hover:bg-slate-50 dark:hover:bg-zinc-700/80 backdrop-blur-md"
+                    >
+                        <ArrowLeft size={16} />
+                        <span>Back</span>
+                    </button>
+
                     <button
                         onClick={handleSaveSession}
                         disabled={isSaved || isSaving}
