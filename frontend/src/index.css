@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@variant dark (&:where(.dark, .dark *));
 
 @layer base {
   :root {
@@ -41,44 +42,72 @@
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
 
-    /* Whiteboard variables */
-    --bg-color: #f8fafc;
-    --bg-canvas: #ffffff;
-    --toolbar-bg: rgba(255, 255, 255, 0.7);
-    --text-primary: #1e293b;
-    --text-secondary: #64748b;
-    --primary-color: #6366f1;
-    --primary-hover: #4f46e5;
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 24px;
+    /* Dashboard specific refinements */
+    --dashboard-bg: #f8fafc;
+    --sidebar-w: 280px;
+    --accent-blue: #3b82f6;
+    --accent-indigo: #6366f1;
+    --accent-purple: #a855f7;
+    --accent-pink: #ec4899;
+
     --glass-bg: rgba(255, 255, 255, 0.7);
-    --glass-border: rgba(255, 255, 255, 0.3);
+    --glass-border: rgba(255, 255, 255, 0.4);
+
+    --shadow-premium: 0 10px 40px -10px rgba(0, 0, 0, 0.05), 0 2px 10px -2px rgba(0, 0, 0, 0.02);
+    --shadow-hover: 0 20px 50px -12px rgba(0, 0, 0, 0.08), 0 4px 15px -4px rgba(0, 0, 0, 0.04);
+  }
+
+  /* Animations */
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.5s ease-out forwards;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 5.9% 10%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 240 4.9% 83.9%;
   }
 
   * {
@@ -686,4 +715,35 @@
   background: var(--primary-color);
   border-radius: 50%;
   box-shadow: 0 0 10px var(--primary-color);
+}
+
+/* Dashboard Recovery & Stability Overrides */
+.grid {
+  display: grid !important;
+  width: 100% !important;
+}
+
+/* Force cards to respect grid columns and not collapse */
+.grid>div,
+.grid>button {
+  min-width: 0 !important;
+  width: 100% !important;
+}
+
+/* Ensure typography is always sharp and visible */
+h2,
+h3 {
+  letter-spacing: -0.025em;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Fix for potential flex-squash in main content */
+main {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* Prevent icons from shrinking */
+svg {
+  flex-shrink: 0 !important;
 }
