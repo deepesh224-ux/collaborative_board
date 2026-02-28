@@ -5,6 +5,7 @@ import type { Path, StickyNote, TextShape, BasicShape } from '../types';
 export const ydoc = new Y.Doc();
 
 export interface YjsStore {
+    ydoc: Y.Doc;
     provider: WebrtcProvider;
     awareness: any;
     yPaths: Y.Map<Path>;
@@ -30,7 +31,7 @@ export function initRoom(roomId: string): YjsStore {
     const yTexts = ydoc.getMap<TextShape>('texts');
     const yShapes = ydoc.getMap<BasicShape>('shapes');
 
-    store = { provider, awareness, yPaths, yNotes, yTexts, yShapes };
+    store = { ydoc, provider, awareness, yPaths, yNotes, yTexts, yShapes };
     return store;
 }
 
