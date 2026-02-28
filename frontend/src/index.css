@@ -184,17 +184,54 @@
 
 /* Whiteboard Area */
 .board-container {
-  width: calc(100vw - 48px);
-  height: calc(100vh - 48px);
-  background-color: var(--bg-canvas);
-  background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
-  background-size: 32px 32px;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
+  width: 100%;
+  height: 100%;
   position: relative;
   overflow: hidden;
   touch-action: none;
+  display: flex;
 }
+
+.board-container .excalidraw {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Hide Excalidraw Library Button */
+.layer-ui__library-button,
+.excalidraw .sidebar-trigger[title*="Library" i],
+.excalidraw .sidebar-trigger[aria-label*="Library" i],
+.excalidraw [aria-label="Library" i],
+.excalidraw [title="Library" i] {
+  display: none !important;
+}
+
+/* Hide Excalidraw Social/External Links Section */
+.excalidraw .dropdown-menu-group:has(a[href*="discord"]),
+.excalidraw .dropdown-menu-group:has(a[href*="excalidraw"]),
+.excalidraw .dropdown-menu-item:has(a[href*="discord"]),
+.excalidraw .dropdown-menu-item:has(a[href*="excalidraw"]),
+.excalidraw-watermark,
+.excalidraw-links {
+  display: none !important;
+}
+
+/* Hide Excalidraw 'Generate' Tools (Mermaid, Wireframe) via CSS */
+.excalidraw .dropdown-menu-item[data-testid*="mermaid" i],
+.excalidraw .dropdown-menu-group-title:has(+ .dropdown-menu-item[data-testid*="mermaid" i]),
+.excalidraw .dropdown-menu-item:has(span[title*="Mermaid" i]),
+.excalidraw .dropdown-menu-item:has(span[title*="Wireframe" i]),
+.excalidraw .dropdown-menu-group:has(.dropdown-menu-item[data-testid*="mermaid" i]) {
+  display: none !important;
+}
+
+/* Hide exact inline "Generate" string and group title per user request */
+.excalidraw .dropdown-menu [style*="font-weight: 600"]:contains("Generate"),
+.excalidraw .dropdown-menu div:contains("Generate"),
+.excalidraw .dropdown-menu-group-title:contains("Generate") {
+  display: none !important;
+}
+
 
 .canvas-layer {
   position: absolute;

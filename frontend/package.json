@@ -10,13 +10,16 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@excalidraw/excalidraw": "^0.18.0",
     "@use-gesture/react": "^10.3.1",
     "framer-motion": "^12.34.3",
     "lucide-react": "^0.575.0",
     "perfect-freehand": "^1.2.3",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "react-router-dom": "^7.13.1",
+    "roughjs": "^4.6.6",
+    "socket.io-client": "^4.8.3",
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^13.0.0",
     "y-webrtc": "^10.3.0",
