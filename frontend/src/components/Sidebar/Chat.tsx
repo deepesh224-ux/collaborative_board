@@ -8,13 +8,9 @@ export const Chat = ({ roomId, userName }: { roomId: string, userName: string })
     const [input, setInput] = useState('');
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    // In a real app, you'd use a Yjs Array or Map for chat persistence
-    // For this demo, we'll use a simple Socket.io broadcast (implemented in backend index.ts)
 
     const sendMessage = () => {
         if (!input.trim()) return;
-        // Emit to socket (assuming socket is globally available or passed in)
-        // For now, let's use the awareness/Yjs for "state synced" chat
         const { ydoc } = getStore();
         const yChat = ydoc.getArray('chat-messages');
         yChat.push([{ text: input, user: userName, timestamp: Date.now() }]);

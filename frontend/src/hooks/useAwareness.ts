@@ -49,4 +49,3 @@ export function useAwareness() {
         clientId: awareness.clientID
     };
 }
-
