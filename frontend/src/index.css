@@ -254,10 +254,21 @@
   display: none !important;
 }
 
-/* Hide exact inline "Generate" string and group title per user request */
-.excalidraw .dropdown-menu [style*="font-weight: 600"]:contains("Generate"),
-.excalidraw .dropdown-menu div:contains("Generate"),
-.excalidraw .dropdown-menu-group-title:contains("Generate") {
+/* Hide the "Generate" group header and Mermaid to Excalidraw item */
+.excalidraw .dropdown-menu-group-title,
+.excalidraw .dropdown-menu-item--highlighted:has(svg.tabler-icon-brand-mermaid),
+.excalidraw [data-testid="mermaid-to-excalidraw"],
+.excalidraw .dropdown-menu-item:nth-child(n):has(svg[class*="mermaid"]) {
+  display: none !important;
+}
+
+/* Hide the ? Help button (bottom right) */
+.excalidraw .help-icon,
+.excalidraw button[aria-label="Help"],
+.excalidraw button[title="Help"],
+.excalidraw .helpButton,
+.excalidraw [data-testid="help-button"],
+.excalidraw footer .help-icon {
   display: none !important;
 }
 

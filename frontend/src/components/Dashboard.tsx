@@ -255,7 +255,7 @@ export default function Dashboard({ isDarkMode, setIsDarkMode }: { isDarkMode: b
                     </div>
 
                     <div className="flex flex-col gap-16 pb-32">
-                        {/* Live Sessions Section — always visible in Overview */}
+
                         {activeTab === 'all' && (
                             <section className="w-full">
                                 <div className="flex items-center justify-between mb-6">

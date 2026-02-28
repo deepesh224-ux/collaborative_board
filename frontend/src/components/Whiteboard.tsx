@@ -91,6 +91,35 @@ export function Whiteboard({ isDarkModeGlobal }: { isDarkModeGlobal: boolean }) 
         });
     }, [yElements, ydoc, isDarkMode]);
 
+    // Use MutationObserver to hide Mermaid item and ? button whenever they appear in the DOM
+    useEffect(() => {
+        const hideMermaidAndHelp = () => {
+            // Walk all elements in the excalidraw container looking for Mermaid text
+            document.querySelectorAll('.excalidraw li, .excalidraw button, .excalidraw .dropdown-menu-item').forEach((el) => {
+                const text = el.textContent?.trim() ?? '';
+                if (text.toLowerCase().includes('mermaid')) {
+                    (el as HTMLElement).style.display = 'none';
+                }
+            });
+            // Hide "Generate" group label
+            document.querySelectorAll('.excalidraw .dropdown-menu-group-title, .excalidraw .Island > *').forEach((el) => {
+                if ((el as HTMLElement).textContent?.trim() === 'Generate') {
+                    (el as HTMLElement).style.display = 'none';
+                }
+            });
+            // Hide help/? button
+            document.querySelectorAll<HTMLElement>(
+                '.excalidraw .help-icon, .excalidraw [aria-label="Help"], .excalidraw [data-testid="help-button"], .excalidraw button[title="Help"]'
+            ).forEach(el => { el.style.display = 'none'; });
+        };
+
+        const observer = new MutationObserver(hideMermaidAndHelp);
+        observer.observe(document.body, { childList: true, subtree: true });
+        hideMermaidAndHelp(); // run once immediately
+        return () => observer.disconnect();
+    }, []);
+
+
     return (
         <div className="flex h-screen w-screen overflow-hidden bg-slate-50 dark:bg-[#0f1115] transition-colors duration-300">
             <div className="relative flex-1 board-container h-full">
