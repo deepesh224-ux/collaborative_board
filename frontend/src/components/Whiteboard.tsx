@@ -1,280 +1,86 @@
-import { useRef, useState, useEffect } from 'react';
-import { useGesture } from '@use-gesture/react';
-import type { Tool } from './Toolbar';
-import { useWhiteboard } from '../hooks/useWhiteboard';
-import { useAwareness } from '../hooks/useAwareness';
-import { generatePathData } from '../utils/getStroke';
-import { StickyNoteComponent } from './StickyNoteComponent';
-import { LiveCursors } from './LiveCursors';
-import type { Point } from '../types';
+import { useRef, useEffect, useState, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
+import { Excalidraw } from '@excalidraw/excalidraw';
+import '@excalidraw/excalidraw/index.css';
+import { Chat } from './Sidebar/Chat';
+import { VideoCall } from './Sidebar/VideoCall';
+import { MiniGames } from './Sidebar/MiniGames';
+import { UserList } from './presence/UserList';
+import { useP2P } from '../hooks/useP2P';
 
-interface WhiteboardProps {
-    activeTool: Tool;
-    selectedColor: string;
-}
+// We maintain a reference to the Excalidraw API to update the scene from Yjs
+export function Whiteboard() {
+    const { roomId } = useParams<{ roomId: string }>();
+    const excalidrawAPI = useRef<any>(null);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { ydoc } = useP2P(`collaborative-whiteboard-${roomId || 'default'}`);
 
-export function Whiteboard({ activeTool, selectedColor }: WhiteboardProps) {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const {
-        paths, notes, shapes, texts,
-        addPath, updatePath,
-        addNote, updateNote, removeNote,
-        addShape, updateShape,
-        addText, updateText, removeText
-    } = useWhiteboard();
-    const { updateCursor, sendPing, clientId } = useAwareness();
+    const [guestName] = useState(`Guest ${Math.random().toString(36).substring(2, 6)}`);
+    const [selectedColor] = useState('#' + Math.floor(Math.random() * 16777215).toString(16));
 
-    const [currentPathId, setCurrentPathId] = useState<string | null>(null);
-    const [currentShapeId, setCurrentShapeId] = useState<string | null>(null);
-    const [startPos, setStartPos] = useState<{ x: number, y: number } | null>(null);
-    const [guestName] = useState(`Guest ${clientId.toString().slice(-4)}`);
+    // Yjs shared map for elements
+    const yElements = ydoc.getMap<any>('elements');
 
-    // Transform state for panning/zooming
-    const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
-
-    // Handle pointer movements for live cursors
+    // Sync from Yjs to Excalidraw
     useEffect(() => {
-        const handlePointerMove = (e: PointerEvent) => {
-            if (!containerRef.current) return;
-            const rect = containerRef.current.getBoundingClientRect();
-            const x = (e.clientX - rect.left - transform.x) / transform.scale;
-            const y = (e.clientY - rect.top - transform.y) / transform.scale;
+        const handleSync = () => {
+            if (!excalidrawAPI.current) return;
 
-            updateCursor({
-                x,
-                y,
-                color: selectedColor,
-                name: guestName
-            });
+            // Map Yjs map to array for Excalidraw
+            const yArray = Array.from(yElements.values());
+
+            // basic reconciliation (for a production app, use actual CRDT merging strategies)
+            if (yArray.length > 0) {
+                excalidrawAPI.current.updateScene({ elements: yArray });
+            }
         };
 
-        window.addEventListener('pointermove', handlePointerMove);
-        return () => window.removeEventListener('pointermove', handlePointerMove);
-    }, [updateCursor, transform, selectedColor, guestName]);
+        yElements.observe(handleSync);
+        return () => yElements.unobserve(handleSync);
+    }, [yElements]);
 
-    // Gestures for panning, drawing, etc
-    useGesture(
-        {
-            onDrag: ({ event, movement: [dx, dy], first, last, memo }) => {
-                const e = event as PointerEvent;
-                // Middle click or select tool = pan
-                if (e.buttons === 4 || activeTool === 'select') {
-                    if (first) return { x: transform.x, y: transform.y };
-                    if (memo) {
-                        setTransform(t => ({ ...t, x: memo.x + dx, y: memo.y + dy }));
-                    }
-                    return memo;
+
+    const onChange = useCallback((elements: readonly any[]) => {
+        ydoc.transact(() => {
+            elements.forEach(el => {
+                // To prevent infinite loops, only update if the version changed or it's new
+                const existing = yElements.get(el.id);
+                if (!existing || existing.version < el.version) {
+                    yElements.set(el.id, el);
                 }
-
-                if (activeTool === 'draw') {
-                    if (!containerRef.current) return;
-                    const rect = containerRef.current.getBoundingClientRect();
-                    const pX = (e.clientX - rect.left - transform.x) / transform.scale;
-                    const pY = (e.clientY - rect.top - transform.y) / transform.scale;
-                    const point: Point = [pX, pY, e.pressure || 0.5];
-
-                    if (first) {
-                        const id = Math.random().toString(36).substring(2, 9);
-                        setCurrentPathId(id);
-                        addPath({ id, points: [point], color: selectedColor, width: 8 });
-                        return id;
-                    } else if (currentPathId) {
-                        const existingPath = paths[currentPathId];
-                        if (existingPath) {
-                            updatePath(currentPathId, { points: [...existingPath.points, point] });
-                        }
-                    }
-                    if (last) setCurrentPathId(null);
-                } else if (activeTool === 'rectangle' || activeTool === 'circle') {
-                    if (!containerRef.current) return;
-                    const rect = containerRef.current.getBoundingClientRect();
-                    const pX = (e.clientX - rect.left - transform.x) / transform.scale;
-                    const pY = (e.clientY - rect.top - transform.y) / transform.scale;
-
-                    if (first) {
-                        const id = Math.random().toString(36).substring(2, 9);
-                        setCurrentShapeId(id);
-                        setStartPos({ x: pX, y: pY });
-                        addShape({
-                            id,
-                            type: activeTool,
-                            color: selectedColor,
-                            x: pX,
-                            y: pY,
-                            width: 0,
-                            height: 0
-                        });
-                        return id;
-                    } else if (currentShapeId && startPos) {
-                        const existingShape = shapes[currentShapeId];
-                        if (existingShape) {
-                            // Calculate bounds
-                            const minX = Math.min(startPos.x, pX);
-                            const minY = Math.min(startPos.y, pY);
-                            const width = Math.abs(pX - startPos.x);
-                            const height = Math.abs(pY - startPos.y);
-
-                            updateShape(currentShapeId, {
-                                x: minX,
-                                y: minY,
-                                width,
-                                height
-                            });
-                        }
-                    }
-                    if (last) {
-                        setCurrentShapeId(null);
-                        setStartPos(null);
-                    }
-                }
-            },
-            onWheel: ({ event, delta: [, dy], ctrlKey }) => {
-                if (ctrlKey) {
-                    event.preventDefault();
-                    // Zoom
-                    setTransform(t => {
-                        const newScale = Math.max(0.1, Math.min(t.scale - dy * 0.01, 5));
-                        return { ...t, scale: newScale };
-                    });
-                }
-            },
-            onClick: ({ event }) => {
-                const e = event as PointerEvent;
-                if (!containerRef.current) return;
-
-                // Prevent trigger if clicking on something that isn't the canvas
-                const target = e.target as HTMLElement;
-                if (target !== containerRef.current && target.tagName !== 'svg' && target.className !== 'canvas-layer') return;
-
-                const rect = containerRef.current.getBoundingClientRect();
-                const x = (e.clientX - rect.left - transform.x) / transform.scale;
-                const y = (e.clientY - rect.top - transform.y) / transform.scale;
-
-                if (activeTool === 'sticky') {
-                    addNote({
-                        x,
-                        y,
-                        text: '',
-                        color: selectedColor
-                    });
-                } else if (activeTool === 'text') {
-                    addText({
-                        x,
-                        y,
-                        text: 'Double click to edit',
-                        color: selectedColor,
-                        fontSize: 24
-                    });
-                } else if (activeTool === 'ping') {
-                    sendPing({
-                        id: Math.random().toString(36).substring(2, 9),
-                        x,
-                        y,
-                        timestamp: Date.now(),
-                        userId: clientId.toString()
-                    });
-                }
-            }
-        },
-        {
-            target: containerRef,
-            eventOptions: { passive: false },
-        }
-    );
+            });
+        });
+    }, [yElements, ydoc]);
 
     return (
-        <div
-            ref={containerRef}
-            className="board-container"
-            style={{
-                cursor: activeTool === 'draw' ? 'crosshair' :
-                    activeTool === 'sticky' ? 'copy' :
-                        activeTool === 'text' ? 'text' :
-                            activeTool === 'select' ? 'grab' :
-                                activeTool === 'ping' ? 'crosshair' : 'default'
-            }}
-        >
-            <div
-                className="canvas-layer"
-                style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, transformOrigin: '0 0' }}
-            >
-                <svg style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', overflow: 'visible' }}>
-                    {Object.values(paths).map(path => (
-                        <path
-                            key={path.id}
-                            d={generatePathData(path.points)}
-                            fill={path.color}
-                        />
-                    ))}
-                    {Object.values(shapes).map(shape => {
-                        if (shape.type === 'rectangle') {
-                            return (
-                                <rect
-                                    key={shape.id}
-                                    x={shape.x}
-                                    y={shape.y}
-                                    width={shape.width}
-                                    height={shape.height}
-                                    fill={shape.color}
-                                    rx={12}
-                                />
-                            );
-                        } else if (shape.type === 'circle') {
-                            const cx = shape.x + shape.width / 2;
-                            const cy = shape.y + shape.height / 2;
-                            const rx = shape.width / 2;
-                            const ry = shape.height / 2;
-                            return (
-                                <ellipse
-                                    key={shape.id}
-                                    cx={cx}
-                                    cy={cy}
-                                    rx={rx}
-                                    ry={ry}
-                                    fill={shape.color}
-                                />
-                            );
+        <div className="flex h-screen w-screen overflow-hidden bg-[#0f1115]">
+            <div className="relative flex-1 board-container h-full">
+                <Excalidraw
+                    excalidrawAPI={(api) => excalidrawAPI.current = api}
+                    onChange={onChange}
+                    initialData={{ appState: { theme: 'dark' } }}
+                    UIOptions={{
+                        canvasActions: {
+                            changeViewBackgroundColor: true,
+                            clearCanvas: true,
+                            export: { saveFileToDisk: true },
+                            loadScene: true,
+                            saveToActiveFile: true,
+                            toggleTheme: true,
+                            saveAsImage: true,
                         }
-                        return null;
-                    })}
-                </svg>
-
-                <div className="shapes-layer">
-                    {Object.values(notes).map(note => (
-                        <StickyNoteComponent
-                            key={note.id}
-                            note={note}
-                            updateNote={updateNote}
-                            removeNote={removeNote}
-                        />
-                    ))}
-
-                    {Object.values(texts).map(text => (
-                        <div
-                            key={text.id}
-                            className="text-element"
-                            style={{ left: text.x, top: text.y }}
-                        >
-                            <input
-                                value={text.text}
-                                onChange={(e) => updateText(text.id, { text: e.target.value })}
-                                style={{
-                                    color: text.color,
-                                    fontSize: `${text.fontSize}px`,
-                                    width: `${text.text.length + 2}ch`
-                                }}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') e.currentTarget.blur();
-                                    if (e.key === 'Backspace' && text.text === '') removeText(text.id);
-                                }}
-                            />
-                        </div>
-                    ))}
-                </div>
-
-                <LiveCursors />
+                    }}
+                />
             </div>
+
+            {/* Glassmorphic Sidebar flex item */}
+            <div className="w-80 h-full p-4 space-y-4 glass-panel border-l border-white/10 z-[100] flex flex-col items-center overflow-y-auto custom-scrollbar shadow-2xl bg-black/40 backdrop-blur-xl">
+                <UserList roomId={roomId || 'default'} userName={guestName} color={selectedColor} />
+                <VideoCall />
+                <Chat roomId={roomId || 'default'} userName={guestName} />
+            </div>
+
+            <MiniGames />
         </div>
     );
 }
-
