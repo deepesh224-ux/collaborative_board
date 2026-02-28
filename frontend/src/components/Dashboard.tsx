@@ -254,9 +254,9 @@ export default function Dashboard({ isDarkMode, setIsDarkMode }: { isDarkMode: b
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-20 pb-32">
-                        {/* Live Sessions Section */}
-                        {data.activeNow.length > 0 && activeTab === 'all' && (
+                    <div className="flex flex-col gap-16 pb-32">
+
+                        {activeTab === 'all' && (
                             <section className="w-full">
                                 <div className="flex items-center justify-between mb-6">
                                     <div className="flex items-center gap-3">
@@ -266,46 +266,59 @@ export default function Dashboard({ isDarkMode, setIsDarkMode }: { isDarkMode: b
                                         <h3 className="text-xs font-black text-slate-900 dark:text-zinc-100 tracking-widest uppercase">Live Now</h3>
                                     </div>
                                     <span className="px-3 py-1 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-500 text-[9px] font-black rounded-full border border-green-100 dark:border-green-900/50 flex items-center gap-2 shadow-sm">
-                                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_12px_rgba(34,197,94,0.6)]"></span>
-                                        {data.activeNow.length} ACTIVE
+                                        {data.activeNow.length > 0 && (
+                                            <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_12px_rgba(34,197,94,0.6)]"></span>
+                                        )}
+                                        {data.activeNow.length > 0 ? `${data.activeNow.length} ACTIVE` : 'NO ACTIVE SESSIONS'}
                                     </span>
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full auto-rows-fr">
-                                    {data.activeNow.map((board) => (
-                                        <div
-                                            key={board.id}
-                                            onClick={() => navigate(`/room/${board.id}`)}
-                                            className="w-full bg-white dark:bg-zinc-800 rounded-[1.8rem] border border-slate-100 dark:border-zinc-700 p-6 hover:border-green-300 dark:hover:border-green-500 hover:shadow-[0_15px_45px_-10px_rgba(34,197,94,0.12)] dark:hover:shadow-[0_20px_50px_-12px_rgba(34,197,94,0.2)] transition-all cursor-pointer flex flex-col min-h-[160px] group relative shadow-sm dark:shadow-2xl dark:shadow-black/50"
-                                        >
-                                            <div className="w-10 h-10 bg-green-50 dark:bg-green-950/40 rounded-xl flex items-center justify-center mb-6 flex-shrink-0">
-                                                <Radio className="text-green-600 dark:text-green-500 w-5 h-5" />
-                                            </div>
-                                            <div className="flex-1">
-                                                <h3 className="text-sm font-black text-slate-900 dark:text-zinc-100 mb-1.5 tracking-tight leading-none uppercase">{board.name}</h3>
-                                                <div className="flex items-center gap-2 text-slate-400 dark:text-zinc-500">
-                                                    <Users size={12} className="text-slate-200 dark:text-zinc-800" />
-                                                    <span className="text-[9px] font-black tracking-widest uppercase opacity-60">Real-time Session</span>
-                                                </div>
-                                            </div>
 
-                                            {/* Delete Button for Live Cards */}
-                                            {board.ownerId === MOCK_USER_ID && (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setBoardToDelete({ id: board.id, name: board.name });
-                                                        setIsDeleteModalOpen(true);
-                                                    }}
-                                                    className="absolute top-4 right-4 p-2 text-red-500 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all bg-white/80 dark:bg-zinc-800/80 backdrop-blur rounded-xl hover:bg-red-50 dark:hover:bg-red-950/20"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            )}
+                                {data.activeNow.length === 0 ? (
+                                    <div className="w-full border-2 border-dashed border-slate-100 dark:border-zinc-800 rounded-[1.8rem] p-8 flex flex-col items-center justify-center gap-3 text-center">
+                                        <div className="w-12 h-12 bg-slate-50 dark:bg-zinc-900 rounded-2xl flex items-center justify-center">
+                                            <Radio className="text-slate-300 dark:text-zinc-600" size={22} />
                                         </div>
-                                    ))}
-                                </div>
+                                        <p className="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">No live sessions right now</p>
+                                        <p className="text-[11px] text-slate-300 dark:text-zinc-600">Create a new project to start a live session</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 w-full auto-rows-fr">
+                                        {data.activeNow.map((board) => (
+                                            <div
+                                                key={board.id}
+                                                onClick={() => navigate(`/room/${board.id}`)}
+                                                className="w-full bg-white dark:bg-zinc-800 rounded-[1.8rem] border border-slate-100 dark:border-zinc-700 p-6 hover:border-green-300 dark:hover:border-green-500 hover:shadow-[0_15px_45px_-10px_rgba(34,197,94,0.12)] dark:hover:shadow-[0_20px_50px_-12px_rgba(34,197,94,0.2)] transition-all cursor-pointer flex flex-col min-h-[160px] group relative shadow-sm dark:shadow-2xl dark:shadow-black/50"
+                                            >
+                                                <div className="w-10 h-10 bg-green-50 dark:bg-green-950/40 rounded-xl flex items-center justify-center mb-6 flex-shrink-0">
+                                                    <Radio className="text-green-600 dark:text-green-500 w-5 h-5" />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <h3 className="text-sm font-black text-slate-900 dark:text-zinc-100 mb-1.5 tracking-tight leading-none uppercase">{board.name}</h3>
+                                                    <div className="flex items-center gap-2 text-slate-400 dark:text-zinc-500">
+                                                        <Users size={12} className="text-slate-200 dark:text-zinc-800" />
+                                                        <span className="text-[9px] font-black tracking-widest uppercase opacity-60">Real-time Session</span>
+                                                    </div>
+                                                </div>
+
+                                                {board.ownerId === MOCK_USER_ID && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setBoardToDelete({ id: board.id, name: board.name });
+                                                            setIsDeleteModalOpen(true);
+                                                        }}
+                                                        className="absolute top-4 right-4 p-2 text-red-500 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all bg-white/80 dark:bg-zinc-800/80 backdrop-blur rounded-xl hover:bg-red-50 dark:hover:bg-red-950/20"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </section>
                         )}
+
 
                         {/* Recent Projects Section */}
                         <section className="w-full">
@@ -409,156 +422,162 @@ export default function Dashboard({ isDarkMode, setIsDarkMode }: { isDarkMode: b
                                 </div>
                             )}
                         </section>
-                    </div>
+                    </div>   {/* end flex gap-16 wrapper */}
                 </div>
             </main>
 
             {/* Create Board Modal */}
-            {isCreateModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" id="create-modal">
-                    <div className="bg-white dark:bg-[#0a0a0a] w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100 dark:border-zinc-800/80 transition-colors duration-300">
-                        <div className="flex items-center gap-4 mb-8">
-                            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100 dark:shadow-none">
-                                <Plus className="text-white w-6 h-6 stroke-[3px]" />
+            {
+                isCreateModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" id="create-modal">
+                        <div className="bg-white dark:bg-[#0a0a0a] w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100 dark:border-zinc-800/80 transition-colors duration-300">
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100 dark:shadow-none">
+                                    <Plus className="text-white w-6 h-6 stroke-[3px]" />
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter uppercase leading-none transition-colors duration-300">New Project</h3>
+                                    <p className="text-slate-400 dark:text-zinc-500 text-sm font-bold mt-1 transition-colors duration-300">Give your masterpiece a name</p>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter uppercase leading-none transition-colors duration-300">New Project</h3>
-                                <p className="text-slate-400 dark:text-zinc-500 text-sm font-bold mt-1 transition-colors duration-300">Give your masterpiece a name</p>
-                            </div>
+
+                            <form onSubmit={handleCreateBoard}>
+                                <div className="mb-8">
+                                    <label className="block text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-3 ml-2">Project Name</label>
+                                    <input
+                                        autoFocus
+                                        type="text"
+                                        placeholder="Enter name (e.g. Brainstorming)"
+                                        value={newBoardName}
+                                        onChange={(e) => setNewBoardName(e.target.value)}
+                                        className="w-full px-6 py-4 bg-slate-50 dark:bg-black border-none rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:bg-white dark:focus:bg-zinc-900 transition-all font-bold text-lg text-slate-800 dark:text-zinc-200 shadow-inner"
+                                    />
+                                </div>
+
+                                <div className="flex gap-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsCreateModalOpen(false);
+                                            setNewBoardName('');
+                                        }}
+                                        className="flex-1 px-8 py-4 bg-slate-50 dark:bg-zinc-900 text-slate-400 dark:text-zinc-500 font-black rounded-2xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all uppercase tracking-wider text-xs"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={!newBoardName.trim()}
+                                        className="flex-1 px-8 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 dark:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider text-xs"
+                                    >
+                                        Create Board
+                                    </button>
+                                </div>
+                            </form>
                         </div>
-
-                        <form onSubmit={handleCreateBoard}>
-                            <div className="mb-8">
-                                <label className="block text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-3 ml-2">Project Name</label>
-                                <input
-                                    autoFocus
-                                    type="text"
-                                    placeholder="Enter name (e.g. Brainstorming)"
-                                    value={newBoardName}
-                                    onChange={(e) => setNewBoardName(e.target.value)}
-                                    className="w-full px-6 py-4 bg-slate-50 dark:bg-black border-none rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:bg-white dark:focus:bg-zinc-900 transition-all font-bold text-lg text-slate-800 dark:text-zinc-200 shadow-inner"
-                                />
-                            </div>
-
-                            <div className="flex gap-4">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setIsCreateModalOpen(false);
-                                        setNewBoardName('');
-                                    }}
-                                    className="flex-1 px-8 py-4 bg-slate-50 dark:bg-zinc-900 text-slate-400 dark:text-zinc-500 font-black rounded-2xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all uppercase tracking-wider text-xs"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={!newBoardName.trim()}
-                                    className="flex-1 px-8 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 dark:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider text-xs"
-                                >
-                                    Create Board
-                                </button>
-                            </div>
-                        </form>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Join Session Modal */}
-            {isJoinModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" id="join-modal">
-                    <div className="bg-white dark:bg-[#0a0a0a] w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100 dark:border-zinc-800/80 transition-colors duration-300">
-                        <div className="flex items-center gap-4 mb-8">
-                            <div className="w-12 h-12 bg-green-100 dark:bg-green-950/30 rounded-2xl flex items-center justify-center transition-colors duration-300">
-                                <Link className="text-green-600 dark:text-green-500 w-6 h-6" />
+            {
+                isJoinModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" id="join-modal">
+                        <div className="bg-white dark:bg-[#0a0a0a] w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100 dark:border-zinc-800/80 transition-colors duration-300">
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="w-12 h-12 bg-green-100 dark:bg-green-950/30 rounded-2xl flex items-center justify-center transition-colors duration-300">
+                                    <Link className="text-green-600 dark:text-green-500 w-6 h-6" />
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter uppercase leading-none transition-colors duration-300">Join Session</h3>
+                                    <p className="text-slate-400 dark:text-zinc-500 text-sm font-bold mt-1 transition-colors duration-300">Enter a Room ID</p>
+                                </div>
                             </div>
-                            <div>
-                                <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter uppercase leading-none transition-colors duration-300">Join Session</h3>
-                                <p className="text-slate-400 dark:text-zinc-500 text-sm font-bold mt-1 transition-colors duration-300">Enter a Room ID</p>
-                            </div>
-                        </div>
 
-                        <form onSubmit={(e) => {
-                            e.preventDefault();
-                            if (joinSessionId.trim()) {
-                                navigate(`/room/${joinSessionId}`);
-                            }
-                        }}>
-                            <div className="mb-8">
-                                <input
-                                    type="text"
-                                    placeholder="e.g. 1a2b3c4d"
-                                    value={joinSessionId}
-                                    onChange={(e) => setJoinSessionId(e.target.value)}
-                                    className="w-full bg-slate-50 dark:bg-zinc-900 border-2 border-slate-100 dark:border-zinc-800 rounded-2xl px-6 py-4 outline-none focus:border-green-500 dark:focus:border-green-600 focus:bg-white dark:focus:bg-[#0a0a0a] transition-all font-bold text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-zinc-600 placeholder:font-bold"
-                                    autoFocus
-                                />
+                            <form onSubmit={(e) => {
+                                e.preventDefault();
+                                if (joinSessionId.trim()) {
+                                    navigate(`/room/${joinSessionId}`);
+                                }
+                            }}>
+                                <div className="mb-8">
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. 1a2b3c4d"
+                                        value={joinSessionId}
+                                        onChange={(e) => setJoinSessionId(e.target.value)}
+                                        className="w-full bg-slate-50 dark:bg-zinc-900 border-2 border-slate-100 dark:border-zinc-800 rounded-2xl px-6 py-4 outline-none focus:border-green-500 dark:focus:border-green-600 focus:bg-white dark:focus:bg-[#0a0a0a] transition-all font-bold text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-zinc-600 placeholder:font-bold"
+                                        autoFocus
+                                    />
+                                </div>
+
+                                <div className="flex gap-4">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setIsJoinModalOpen(false);
+                                            setJoinSessionId('');
+                                        }}
+                                        className="flex-1 px-8 py-4 bg-slate-50 dark:bg-zinc-900 text-slate-400 dark:text-zinc-500 font-black rounded-2xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all uppercase tracking-wider text-xs"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        className="flex-1 px-8 py-4 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 shadow-xl shadow-green-100 dark:shadow-none transition-all uppercase tracking-wider text-xs"
+                                    >
+                                        Join Room
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )
+            }
+
+            {/* Delete Confirmation Modal */}
+            {
+                isDeleteModalOpen && boardToDelete && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" id="delete-modal">
+                        <div className="bg-white dark:bg-[#0a0a0a] w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100 dark:border-zinc-800/80 transition-colors duration-300">
+                            <div className="flex items-center gap-4 mb-8">
+                                <div className="w-12 h-12 bg-red-100 dark:bg-red-950/30 rounded-2xl flex items-center justify-center transition-colors duration-300">
+                                    <Trash2 className="text-red-600 dark:text-red-500 w-6 h-6" />
+                                </div>
+                                <div>
+                                    <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter uppercase leading-none transition-colors duration-300">Delete Project</h3>
+                                    <p className="text-slate-400 dark:text-zinc-500 text-sm font-bold mt-1 transition-colors duration-300">This action cannot be undone</p>
+                                </div>
+                            </div>
+
+                            <div className="mb-8 p-6 bg-red-50 dark:bg-red-950/20 rounded-2xl border border-red-100 dark:border-red-900/30 transition-colors duration-300">
+                                <p className="text-slate-600 dark:text-zinc-400 font-bold text-sm leading-relaxed transition-colors duration-300">
+                                    Are you sure you want to delete <span className="text-red-700 dark:text-red-500 font-black">"{boardToDelete?.name}"</span>?
+                                    All associated data and active sessions will be permanently removed.
+                                </p>
                             </div>
 
                             <div className="flex gap-4">
                                 <button
-                                    type="button"
                                     onClick={() => {
-                                        setIsJoinModalOpen(false);
-                                        setJoinSessionId('');
+                                        setIsDeleteModalOpen(false);
+                                        setBoardToDelete(null);
                                     }}
                                     className="flex-1 px-8 py-4 bg-slate-50 dark:bg-zinc-900 text-slate-400 dark:text-zinc-500 font-black rounded-2xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all uppercase tracking-wider text-xs"
                                 >
-                                    Cancel
+                                    Nevermind
                                 </button>
                                 <button
-                                    type="submit"
-                                    className="flex-1 px-8 py-4 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 shadow-xl shadow-green-100 dark:shadow-none transition-all uppercase tracking-wider text-xs"
+                                    onClick={handleDeleteBoard}
+                                    className="flex-1 px-8 py-4 bg-red-600 text-white font-black rounded-2xl hover:bg-red-700 shadow-xl shadow-red-100 dark:shadow-none transition-all uppercase tracking-wider text-xs"
                                 >
-                                    Join Room
+                                    Delete Forever
                                 </button>
                             </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Delete Confirmation Modal */}
-            {isDeleteModalOpen && boardToDelete && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" id="delete-modal">
-                    <div className="bg-white dark:bg-[#0a0a0a] w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100 dark:border-zinc-800/80 transition-colors duration-300">
-                        <div className="flex items-center gap-4 mb-8">
-                            <div className="w-12 h-12 bg-red-100 dark:bg-red-950/30 rounded-2xl flex items-center justify-center transition-colors duration-300">
-                                <Trash2 className="text-red-600 dark:text-red-500 w-6 h-6" />
-                            </div>
-                            <div>
-                                <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter uppercase leading-none transition-colors duration-300">Delete Project</h3>
-                                <p className="text-slate-400 dark:text-zinc-500 text-sm font-bold mt-1 transition-colors duration-300">This action cannot be undone</p>
-                            </div>
-                        </div>
-
-                        <div className="mb-8 p-6 bg-red-50 dark:bg-red-950/20 rounded-2xl border border-red-100 dark:border-red-900/30 transition-colors duration-300">
-                            <p className="text-slate-600 dark:text-zinc-400 font-bold text-sm leading-relaxed transition-colors duration-300">
-                                Are you sure you want to delete <span className="text-red-700 dark:text-red-500 font-black">"{boardToDelete?.name}"</span>?
-                                All associated data and active sessions will be permanently removed.
-                            </p>
-                        </div>
-
-                        <div className="flex gap-4">
-                            <button
-                                onClick={() => {
-                                    setIsDeleteModalOpen(false);
-                                    setBoardToDelete(null);
-                                }}
-                                className="flex-1 px-8 py-4 bg-slate-50 dark:bg-zinc-900 text-slate-400 dark:text-zinc-500 font-black rounded-2xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all uppercase tracking-wider text-xs"
-                            >
-                                Nevermind
-                            </button>
-                            <button
-                                onClick={handleDeleteBoard}
-                                className="flex-1 px-8 py-4 bg-red-600 text-white font-black rounded-2xl hover:bg-red-700 shadow-xl shadow-red-100 dark:shadow-none transition-all uppercase tracking-wider text-xs"
-                            >
-                                Delete Forever
-                            </button>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }
