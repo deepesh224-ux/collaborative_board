@@ -104,6 +104,30 @@ export default function Dashboard({ isDarkMode, setIsDarkMode }: { isDarkMode: b
         }
     };
 
+    const handleJoinSession = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!joinSessionId.trim()) return;
+
+        try {
+            const res = await fetch(`${API_BASE}/sessions/${joinSessionId}/join`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: MOCK_USER_ID })
+            });
+
+            if (res.ok) {
+                setIsJoinModalOpen(false);
+                setJoinSessionId('');
+                navigate(`/room/${joinSessionId}`);
+            } else {
+                const err = await res.json();
+                alert(err.error || 'Failed to join session');
+            }
+        } catch (err) {
+            console.error('Failed to join session:', err);
+        }
+    };
+
     const handleDeleteBoard = async () => {
         if (!boardToDelete) return;
         try {
@@ -337,44 +361,40 @@ export default function Dashboard({ isDarkMode, setIsDarkMode }: { isDarkMode: b
                                         <div key={i} className="h-60 bg-slate-50 dark:bg-zinc-900/20 rounded-[2.5rem] border border-slate-100 dark:border-zinc-800 animate-pulse"></div>
                                     ))}
                                 </div>
-                            ) : filteredBoards.length === 0 ? (
-                                <div className="bg-slate-50 dark:bg-zinc-900/10 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-zinc-800/50 p-24 text-center w-full">
-                                    <div className="w-20 h-20 bg-white dark:bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
-                                        <Search className="w-8 h-8 text-slate-100 dark:text-zinc-700" />
-                                    </div>
-                                    <p className="text-slate-400 dark:text-zinc-500 font-extrabold text-xl tracking-tight" id="no-boards-text">No boards found.</p>
-                                    <button onClick={() => setIsCreateModalOpen(true)} className="mt-6 text-indigo-600 dark:text-indigo-400 font-bold hover:underline text-sm">Create your first board</button>
-                                </div>
                             ) : (
                                 <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 w-full auto-rows-fr" : "flex flex-col gap-5 w-full"}>
                                     {/* Action Cards */}
-                                    {viewMode === 'grid' && activeTab === 'all' && !searchQuery && (
+                                    {viewMode === 'grid' && !searchQuery && (
                                         <>
-                                            <button
-                                                onClick={() => setIsCreateModalOpen(true)}
-                                                className="group w-full h-full min-h-[220px] bg-slate-50 dark:bg-zinc-800/40 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-zinc-600 p-6 flex flex-col items-center justify-center hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-indigo-50/10 transition-all cursor-pointer shadow-sm hover:shadow-xl hover:shadow-indigo-100/30 dark:hover:shadow-none"
-                                            >
-                                                <div className="w-14 h-14 bg-white dark:bg-zinc-700 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-all shadow-sm flex-shrink-0 border border-slate-100 dark:border-zinc-600">
-                                                    <Plus className="h-6 w-6 text-slate-300 dark:text-zinc-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 stroke-[3px]" />
-                                                </div>
-                                                <div className="text-center">
-                                                    <span className="text-sm font-black text-slate-900 dark:text-zinc-100 block tracking-tight uppercase">New Project</span>
-                                                    <span className="text-xs text-slate-400 dark:text-zinc-400 font-bold mt-2 block">Start a blank canvas</span>
-                                                </div>
-                                            </button>
+                                            {activeTab === 'all' && (
+                                                <button
+                                                    onClick={() => setIsCreateModalOpen(true)}
+                                                    className="group w-full h-full min-h-[220px] bg-slate-50 dark:bg-zinc-800/40 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-zinc-600 p-6 flex flex-col items-center justify-center hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-indigo-50/10 transition-all cursor-pointer shadow-sm hover:shadow-xl hover:shadow-indigo-100/30 dark:hover:shadow-none"
+                                                >
+                                                    <div className="w-14 h-14 bg-white dark:bg-zinc-700 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-all shadow-sm flex-shrink-0 border border-slate-100 dark:border-zinc-600">
+                                                        <Plus className="h-6 w-6 text-slate-300 dark:text-zinc-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 stroke-[3px]" />
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <span className="text-sm font-black text-slate-900 dark:text-zinc-100 block tracking-tight uppercase">New Project</span>
+                                                        <span className="text-xs text-slate-400 dark:text-zinc-400 font-bold mt-2 block">Start a blank canvas</span>
+                                                    </div>
+                                                </button>
+                                            )}
 
-                                            <button
-                                                onClick={() => setIsJoinModalOpen(true)}
-                                                className="group w-full h-full min-h-[220px] bg-slate-50 dark:bg-zinc-800/40 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-zinc-600 p-6 flex flex-col items-center justify-center hover:border-green-400 dark:hover:border-green-500 hover:bg-green-50/10 transition-all cursor-pointer shadow-sm hover:shadow-xl hover:shadow-green-100/30 dark:hover:shadow-none"
-                                            >
-                                                <div className="w-14 h-14 bg-white dark:bg-zinc-700 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-all shadow-sm flex-shrink-0 border border-slate-100 dark:border-zinc-600">
-                                                    <Link className="h-6 w-6 text-slate-300 dark:text-zinc-400 group-hover:text-green-600 dark:group-hover:text-green-400 stroke-[3px]" />
-                                                </div>
-                                                <div className="text-center">
-                                                    <span className="text-sm font-black text-slate-900 dark:text-zinc-100 block tracking-tight uppercase">Join Session</span>
-                                                    <span className="text-xs text-slate-400 dark:text-zinc-400 font-bold mt-2 block">Enter a Room ID</span>
-                                                </div>
-                                            </button>
+                                            {activeTab === 'shared' && (
+                                                <button
+                                                    onClick={() => setIsJoinModalOpen(true)}
+                                                    className="group w-full h-full min-h-[220px] bg-slate-50 dark:bg-zinc-800/40 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-zinc-600 p-6 flex flex-col items-center justify-center hover:border-green-400 dark:hover:border-green-500 hover:bg-green-50/10 transition-all cursor-pointer shadow-sm hover:shadow-xl hover:shadow-green-100/30 dark:hover:shadow-none"
+                                                >
+                                                    <div className="w-14 h-14 bg-white dark:bg-zinc-700 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-all shadow-sm flex-shrink-0 border border-slate-100 dark:border-zinc-600">
+                                                        <Link className="h-6 w-6 text-slate-300 dark:text-zinc-400 group-hover:text-green-600 dark:group-hover:text-green-400 stroke-[3px]" />
+                                                    </div>
+                                                    <div className="text-center">
+                                                        <span className="text-sm font-black text-slate-900 dark:text-zinc-100 block tracking-tight uppercase">Join Session</span>
+                                                        <span className="text-xs text-slate-400 dark:text-zinc-400 font-bold mt-2 block">Enter a Room ID</span>
+                                                    </div>
+                                                </button>
+                                            )}
                                         </>
                                     )}
 
@@ -419,6 +439,17 @@ export default function Dashboard({ isDarkMode, setIsDarkMode }: { isDarkMode: b
                                             )}
                                         </div>
                                     ))}
+
+                                    {/* Empty State fallback */}
+                                    {filteredBoards.length === 0 && (activeTab === 'mine' || searchQuery || viewMode === 'list') && (
+                                        <div className="col-span-full bg-slate-50 dark:bg-zinc-900/10 rounded-[3rem] border-2 border-dashed border-slate-200 dark:border-zinc-800/50 p-24 text-center w-full">
+                                            <div className="w-20 h-20 bg-white dark:bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
+                                                <Search className="w-8 h-8 text-slate-100 dark:text-zinc-700" />
+                                            </div>
+                                            <p className="text-slate-400 dark:text-zinc-500 font-extrabold text-xl tracking-tight" id="no-boards-text">No boards found.</p>
+                                            <button onClick={() => setIsCreateModalOpen(true)} className="mt-6 text-indigo-600 dark:text-indigo-400 font-bold hover:underline text-sm">Create your first board</button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </section>
@@ -494,12 +525,7 @@ export default function Dashboard({ isDarkMode, setIsDarkMode }: { isDarkMode: b
                                 </div>
                             </div>
 
-                            <form onSubmit={(e) => {
-                                e.preventDefault();
-                                if (joinSessionId.trim()) {
-                                    navigate(`/room/${joinSessionId}`);
-                                }
-                            }}>
+                            <form onSubmit={handleJoinSession}>
                                 <div className="mb-8">
                                     <input
                                         type="text"
