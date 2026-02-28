@@ -5,31 +5,43 @@ import { io } from 'socket.io-client';
 
 const SOCKET_URL = 'http://localhost:5001';
 
-export const UserList = ({ roomId, userName, color }: { roomId: string, userName: string, color: string }) => {
+export const UserList = ({ roomId, userName, color, isDark }: {
+    roomId: string;
+    userName: string;
+    color: string;
+    isDark?: boolean;
+}) => {
     const [participants, setParticipants] = useState<any[]>([]);
+    const dark = isDark ?? document.documentElement.classList.contains('dark');
 
     useEffect(() => {
         const newSocket = io(SOCKET_URL);
-
         newSocket.emit('join-room', { roomId, userName, color });
-
         newSocket.on('user-joined', (user) => {
             setParticipants(prev => [...prev.filter(u => u.socketId !== user.socketId), user]);
         });
-
-        // In a real app, you'd handle 'user-left' and initial list syncing
-        // For this demo, we'll keep it simple
-
-        return () => {
-            newSocket.disconnect();
-        };
+        return () => { newSocket.disconnect(); };
     }, [roomId, userName, color]);
 
     return (
-        <div className="glass-panel w-full px-4 py-3 rounded-2xl flex flex-col items-center gap-4 border border-white/20">
-            <div className="flex items-center gap-2 border-b border-white/10 pb-2 w-full justify-center">
-                <Users size={18} className="text-blue-400" />
-                <span className="text-xs font-semibold text-white/70 uppercase tracking-wider">Collaborators</span>
+        <div
+            style={{
+                background: dark ? 'rgba(255,255,255,0.04)' : '#ffffff',
+                borderColor: dark ? 'rgba(255,255,255,0.12)' : '#e2e8f0',
+            }}
+            className="w-full px-4 py-3 rounded-2xl flex flex-col items-center gap-4 border transition-colors shadow-sm"
+        >
+            <div
+                style={{ borderBottomColor: dark ? 'rgba(255,255,255,0.08)' : '#f1f5f9' }}
+                className="flex items-center gap-2 border-b w-full justify-center pb-2"
+            >
+                <Users size={18} style={{ color: dark ? '#818cf8' : '#4f46e5' }} />
+                <span
+                    style={{ color: dark ? 'rgba(255,255,255,0.7)' : '#475569' }}
+                    className="text-xs font-semibold uppercase tracking-wider"
+                >
+                    Collaborators
+                </span>
             </div>
 
             <div className="flex flex-wrap justify-center gap-2 w-full">
@@ -43,12 +55,18 @@ export const UserList = ({ roomId, userName, color }: { roomId: string, userName
                             className="relative group"
                         >
                             <div
-                                className="w-8 h-8 rounded-full border-2 border-[#0f1115] flex items-center justify-center text-[10px] font-bold text-white shadow-lg"
-                                style={{ backgroundColor: user.color }}
+                                className="w-8 h-8 rounded-full border-2 flex items-center justify-center text-[10px] font-bold text-white shadow-lg"
+                                style={{
+                                    backgroundColor: user.color,
+                                    borderColor: dark ? '#09090b' : '#ffffff',
+                                }}
                             >
                                 {user.userName.slice(0, 2).toUpperCase()}
                             </div>
-                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1 bg-black/80 backdrop-blur-md rounded text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                            <div
+                                style={{ background: dark ? 'rgba(0,0,0,0.8)' : '#1e293b' }}
+                                className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2 py-1 rounded text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50"
+                            >
                                 {user.userName}
                             </div>
                         </motion.div>
@@ -57,8 +75,12 @@ export const UserList = ({ roomId, userName, color }: { roomId: string, userName
 
                 {/* Always show current user */}
                 <div
-                    className="w-8 h-8 rounded-full border-2 border-[#0f1115] flex items-center justify-center text-[10px] font-bold text-white shadow-lg z-10"
-                    style={{ backgroundColor: color }}
+                    className="w-8 h-8 rounded-full border-2 flex items-center justify-center text-[10px] font-bold text-white shadow-lg z-10"
+                    style={{
+                        backgroundColor: color,
+                        borderColor: dark ? '#09090b' : '#ffffff',
+                    }}
+                    title="You"
                 >
                     ME
                 </div>

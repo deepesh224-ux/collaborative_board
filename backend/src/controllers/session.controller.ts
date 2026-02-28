@@ -87,3 +87,17 @@ export const deleteSession = async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Failed to delete board' });
     }
 };
+
+export const saveSession = async (req: Request, res: Response) => {
+    const id = req.params.id as string;
+    try {
+        const board = await prisma.board.update({
+            where: { id },
+            data: { isSaved: true },
+        });
+        res.json({ message: 'Project saved to dashboard', board });
+    } catch (error) {
+        console.error('Error saving board:', error);
+        res.status(500).json({ error: 'Failed to save board' });
+    }
+};

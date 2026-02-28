@@ -1,6 +1,7 @@
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
+import prisma from './lib/prisma';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import sessionRoutes from './routes/session';
@@ -30,15 +31,21 @@ const roomsData: Record<string, any> = {};
 io.on('connection', (socket) => {
     console.log('A user connected:', socket.id);
 
-    socket.on('join-room', ({ roomId, userName, color }) => {
+    socket.on('join-room', async ({ roomId, userName, color }) => {
         socket.join(roomId);
+
+        // Track user in room
+        if (!roomsData[roomId]) roomsData[roomId] = [];
+        if (!roomsData[roomId].includes(socket.id)) {
+            roomsData[roomId].push(socket.id);
+        }
 
         // Notify others about the new participant
         socket.to(roomId).emit('user-joined', { socketId: socket.id, userName, color });
 
         // Send current participants list to the new user
         // (In a real app, you'd manage this state more robustly)
-        console.log(`User ${userName} joined room ${roomId}`);
+        console.log(`User ${userName} joined room ${roomId}. Total: ${roomsData[roomId].length}`);
     });
 
     socket.on('cursor-move', ({ roomId, x, y, userName, color }) => {
@@ -53,9 +60,58 @@ io.on('connection', (socket) => {
         io.to(roomId).emit('chat-message-received', { message, userName, timestamp: new Date() });
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
         console.log('User disconnected:', socket.id);
-        // You could broadcast a 'user-left' event here
+        socket.broadcast.emit('user-left', socket.id);
+
+        // Find which room this user was in and remove them
+        for (const roomId in roomsData) {
+            if (roomsData[roomId]) {
+                const index = roomsData[roomId].indexOf(socket.id);
+                if (index !== -1) {
+                    roomsData[roomId].splice(index, 1);
+                    // If room is empty, mark session inactive
+                    if (roomsData[roomId].length === 0) {
+                        delete roomsData[roomId];
+                        try {
+                            // Find the active session for this board and close it
+                            await prisma.session.updateMany({
+                                where: { boardId: roomId, isActive: true },
+                                data: { isActive: false, endTime: new Date() }
+                            });
+                            console.log(`Closed active session for board ${roomId}`);
+                        } catch (error) {
+                            console.error('Failed to close session on disconnect', error);
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    });
+
+    // Whiteboard Sync (Custom Yjs over Socket.io)
+    socket.on('yjs-update', ({ roomId, update }) => {
+        // Broadcast the update to all other users in the room
+        socket.to(roomId).emit('yjs-update', update);
+    });
+
+    socket.on('request-yjs-state', (roomId) => {
+        // Ask others in the room to broadcast their full state vector for the newly joined user
+        socket.to(roomId).emit('send-yjs-state');
+    });
+
+    // WebRTC Signaling
+    socket.on('webrtc-offer', ({ target, caller, sdp }) => {
+        socket.to(target).emit('webrtc-offer', { caller, sdp });
+    });
+
+    socket.on('webrtc-answer', ({ target, caller, sdp }) => {
+        socket.to(target).emit('webrtc-answer', { caller, sdp });
+    });
+
+    socket.on('webrtc-ice-candidate', ({ target, candidate }) => {
+        socket.to(target).emit('webrtc-ice-candidate', { sender: socket.id, candidate });
     });
 });
 

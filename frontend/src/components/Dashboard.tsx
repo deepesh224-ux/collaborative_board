@@ -13,31 +13,21 @@ import {
     Trash2,
     Radio,
     Sun,
-    Moon
+    Moon,
+    Link
 } from 'lucide-react';
 
 const API_BASE = 'http://localhost:5001/api';
 const MOCK_USER_ID = 'user_123';
 
-export default function Dashboard() {
+export default function Dashboard({ isDarkMode, setIsDarkMode }: { isDarkMode: boolean, setIsDarkMode: (val: boolean) => void }) {
     const navigate = useNavigate();
-    const [isDarkMode, setIsDarkMode] = useState(() => {
-        const savedTheme = localStorage.getItem('theme');
-        if (savedTheme) return savedTheme === 'dark';
-        return window.matchMedia('(prefers-color-scheme: dark)').matches;
-    });
     const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
-        console.log('Theme toggled:', isDarkMode ? 'dark' : 'light');
-        if (isDarkMode) {
-            document.documentElement.classList.add('dark');
-            localStorage.setItem('theme', 'dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-            localStorage.setItem('theme', 'light');
-        }
-    }, [isDarkMode]);
+        // fetch data when component mounts
+        fetchDashboard();
+    }, []);
     const [activeTab, setActiveTab] = useState('all');
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [data, setData] = useState<{ myBoards: any[], sharedWithMe: any[], activeNow: any[] }>({
@@ -48,6 +38,9 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [newBoardName, setNewBoardName] = useState('');
+
+    const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
+    const [joinSessionId, setJoinSessionId] = useState('');
 
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [boardToDelete, setBoardToDelete] = useState<{ id: string, name: string } | null>(null);
@@ -74,11 +67,16 @@ export default function Dashboard() {
     }, []);
 
     const allBoards = useMemo(() => {
-        const boards = [...data.myBoards, ...data.sharedWithMe];
-        return boards.filter(board =>
+        // Overview should show ALL projects: saved, shared, AND live
+        const boards = [...data.myBoards, ...data.sharedWithMe, ...data.activeNow];
+
+        // Remove duplicates just in case (e.g. if the backend ever returns a board in multiple)
+        const uniqueBoards = Array.from(new Map(boards.map(b => [b.id, b])).values());
+
+        return uniqueBoards.filter(board =>
             board.name.toLowerCase().includes(searchQuery.toLowerCase())
         );
-    }, [data.myBoards, data.sharedWithMe, searchQuery]);
+    }, [data.myBoards, data.sharedWithMe, data.activeNow, searchQuery]);
 
     const filteredBoards = useMemo(() => {
         if (activeTab === 'all') return allBoards;
@@ -258,7 +256,7 @@ export default function Dashboard() {
 
                     <div className="flex flex-col gap-20 pb-32">
                         {/* Live Sessions Section */}
-                        {data.activeNow.length > 0 && (
+                        {data.activeNow.length > 0 && activeTab === 'all' && (
                             <section className="w-full">
                                 <div className="flex items-center justify-between mb-6">
                                     <div className="flex items-center gap-3">
@@ -336,20 +334,35 @@ export default function Dashboard() {
                                 </div>
                             ) : (
                                 <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 w-full auto-rows-fr" : "flex flex-col gap-5 w-full"}>
-                                    {/* Create Action Card */}
-                                    {viewMode === 'grid' && activeTab !== 'shared' && !searchQuery && (
-                                        <button
-                                            onClick={() => setIsCreateModalOpen(true)}
-                                            className="group w-full bg-slate-50 dark:bg-zinc-800/40 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-zinc-600 p-6 flex flex-col items-center justify-center min-h-[220px] hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-indigo-50/10 transition-all cursor-pointer shadow-sm hover:shadow-xl hover:shadow-indigo-100/30 dark:hover:shadow-none"
-                                        >
-                                            <div className="w-14 h-14 bg-white dark:bg-zinc-700 rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 transition-all shadow-sm flex-shrink-0 border border-slate-100 dark:border-zinc-600">
-                                                <Plus className="h-6 w-6 text-slate-300 dark:text-zinc-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 stroke-[3px]" />
-                                            </div>
-                                            <div className="text-center">
-                                                <span className="text-sm font-black text-slate-900 dark:text-zinc-100 block tracking-tighter uppercase leading-none">New Project</span>
-                                                <span className="text-[10px] text-slate-400 dark:text-zinc-400 font-bold mt-1.5 block opacity-60">Start a blank canvas</span>
-                                            </div>
-                                        </button>
+                                    {/* Action Cards */}
+                                    {viewMode === 'grid' && activeTab === 'all' && !searchQuery && (
+                                        <>
+                                            <button
+                                                onClick={() => setIsCreateModalOpen(true)}
+                                                className="group w-full h-full min-h-[220px] bg-slate-50 dark:bg-zinc-800/40 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-zinc-600 p-6 flex flex-col items-center justify-center hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-indigo-50/10 transition-all cursor-pointer shadow-sm hover:shadow-xl hover:shadow-indigo-100/30 dark:hover:shadow-none"
+                                            >
+                                                <div className="w-14 h-14 bg-white dark:bg-zinc-700 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-all shadow-sm flex-shrink-0 border border-slate-100 dark:border-zinc-600">
+                                                    <Plus className="h-6 w-6 text-slate-300 dark:text-zinc-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 stroke-[3px]" />
+                                                </div>
+                                                <div className="text-center">
+                                                    <span className="text-sm font-black text-slate-900 dark:text-zinc-100 block tracking-tight uppercase">New Project</span>
+                                                    <span className="text-xs text-slate-400 dark:text-zinc-400 font-bold mt-2 block">Start a blank canvas</span>
+                                                </div>
+                                            </button>
+
+                                            <button
+                                                onClick={() => setIsJoinModalOpen(true)}
+                                                className="group w-full h-full min-h-[220px] bg-slate-50 dark:bg-zinc-800/40 rounded-[2rem] border-2 border-dashed border-slate-200 dark:border-zinc-600 p-6 flex flex-col items-center justify-center hover:border-green-400 dark:hover:border-green-500 hover:bg-green-50/10 transition-all cursor-pointer shadow-sm hover:shadow-xl hover:shadow-green-100/30 dark:hover:shadow-none"
+                                            >
+                                                <div className="w-14 h-14 bg-white dark:bg-zinc-700 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-all shadow-sm flex-shrink-0 border border-slate-100 dark:border-zinc-600">
+                                                    <Link className="h-6 w-6 text-slate-300 dark:text-zinc-400 group-hover:text-green-600 dark:group-hover:text-green-400 stroke-[3px]" />
+                                                </div>
+                                                <div className="text-center">
+                                                    <span className="text-sm font-black text-slate-900 dark:text-zinc-100 block tracking-tight uppercase">Join Session</span>
+                                                    <span className="text-xs text-slate-400 dark:text-zinc-400 font-bold mt-2 block">Enter a Room ID</span>
+                                                </div>
+                                            </button>
+                                        </>
                                     )}
 
                                     {filteredBoards.map((board) => (
@@ -444,6 +457,60 @@ export default function Dashboard() {
                                     className="flex-1 px-8 py-4 bg-indigo-600 text-white font-black rounded-2xl hover:bg-indigo-700 shadow-xl shadow-indigo-100 dark:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wider text-xs"
                                 >
                                     Create Board
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Join Session Modal */}
+            {isJoinModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" id="join-modal">
+                    <div className="bg-white dark:bg-[#0a0a0a] w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100 dark:border-zinc-800/80 transition-colors duration-300">
+                        <div className="flex items-center gap-4 mb-8">
+                            <div className="w-12 h-12 bg-green-100 dark:bg-green-950/30 rounded-2xl flex items-center justify-center transition-colors duration-300">
+                                <Link className="text-green-600 dark:text-green-500 w-6 h-6" />
+                            </div>
+                            <div>
+                                <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter uppercase leading-none transition-colors duration-300">Join Session</h3>
+                                <p className="text-slate-400 dark:text-zinc-500 text-sm font-bold mt-1 transition-colors duration-300">Enter a Room ID</p>
+                            </div>
+                        </div>
+
+                        <form onSubmit={(e) => {
+                            e.preventDefault();
+                            if (joinSessionId.trim()) {
+                                navigate(`/room/${joinSessionId}`);
+                            }
+                        }}>
+                            <div className="mb-8">
+                                <input
+                                    type="text"
+                                    placeholder="e.g. 1a2b3c4d"
+                                    value={joinSessionId}
+                                    onChange={(e) => setJoinSessionId(e.target.value)}
+                                    className="w-full bg-slate-50 dark:bg-zinc-900 border-2 border-slate-100 dark:border-zinc-800 rounded-2xl px-6 py-4 outline-none focus:border-green-500 dark:focus:border-green-600 focus:bg-white dark:focus:bg-[#0a0a0a] transition-all font-bold text-slate-900 dark:text-white placeholder:text-slate-300 dark:placeholder:text-zinc-600 placeholder:font-bold"
+                                    autoFocus
+                                />
+                            </div>
+
+                            <div className="flex gap-4">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsJoinModalOpen(false);
+                                        setJoinSessionId('');
+                                    }}
+                                    className="flex-1 px-8 py-4 bg-slate-50 dark:bg-zinc-900 text-slate-400 dark:text-zinc-500 font-black rounded-2xl hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all uppercase tracking-wider text-xs"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 px-8 py-4 bg-green-600 text-white font-black rounded-2xl hover:bg-green-700 shadow-xl shadow-green-100 dark:shadow-none transition-all uppercase tracking-wider text-xs"
+                                >
+                                    Join Room
                                 </button>
                             </div>
                         </form>

@@ -1,71 +1,130 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, MessageSquare } from 'lucide-react';
-import { getStore } from '../../store/yjsSetup';
+import { io, Socket } from 'socket.io-client';
 
-export const Chat = ({ roomId, userName }: { roomId: string, userName: string }) => {
+const SOCKET_URL = 'http://localhost:5001';
+
+export const Chat = ({ roomId, userName, isDark }: { roomId: string; userName: string; isDark?: boolean }) => {
     const [messages, setMessages] = useState<any[]>([]);
     const [input, setInput] = useState('');
     const scrollRef = useRef<HTMLDivElement>(null);
+    const socketRef = useRef<Socket | null>(null);
 
+    const dark = isDark ?? document.documentElement.classList.contains('dark');
+
+    useEffect(() => {
+        const socket = io(SOCKET_URL);
+        socketRef.current = socket;
+
+        socket.emit('join-room', { roomId, userName, color: '#ffffff' });
+
+        socket.on('chat-message-received', (msg) => {
+            setMessages((prev) => [...prev, msg]);
+        });
+
+        return () => {
+            socket.disconnect();
+        };
+    }, [roomId, userName]);
 
     const sendMessage = () => {
-        if (!input.trim()) return;
-        const { ydoc } = getStore();
-        const yChat = ydoc.getArray('chat-messages');
-        yChat.push([{ text: input, user: userName, timestamp: Date.now() }]);
+        if (!input.trim() || !socketRef.current) return;
+        const newMsg = { roomId, message: input, userName };
+        socketRef.current.emit('chat-message', newMsg);
         setInput('');
     };
 
     useEffect(() => {
-        const { ydoc } = getStore();
-        const yChat = ydoc.getArray('chat-messages');
-        const updateMessages = () => setMessages(yChat.toArray());
-        yChat.observe(updateMessages);
-        updateMessages();
-        return () => yChat.unobserve(updateMessages);
-    }, []);
-
-    useEffect(() => {
-        scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
+        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
     }, [messages]);
 
     return (
-        <div className="glass-panel flex flex-col h-[400px] w-80 p-4 rounded-2xl overflow-hidden">
-            <div className="flex items-center gap-2 mb-4 border-b border-white/10 pb-2">
-                <MessageSquare size={20} className="text-blue-400" />
-                <h3 className="font-semibold text-white/90">Team Chat</h3>
+        <div
+            style={{
+                background: dark ? 'rgba(255,255,255,0.04)' : '#ffffff',
+                borderColor: dark ? 'rgba(255,255,255,0.1)' : '#e2e8f0',
+            }}
+            className="flex flex-col h-[400px] w-80 p-4 rounded-2xl overflow-hidden shadow-xl border transition-colors"
+        >
+            <div
+                style={{ borderBottomColor: dark ? 'rgba(255,255,255,0.08)' : '#f1f5f9' }}
+                className="flex items-center gap-2 mb-4 pb-3 border-b"
+            >
+                <div
+                    style={{ background: dark ? 'rgba(99,102,241,0.2)' : '#eef2ff' }}
+                    className="w-8 h-8 rounded-full flex items-center justify-center shadow-inner"
+                >
+                    <MessageSquare size={16} style={{ color: dark ? '#818cf8' : '#4f46e5' }} />
+                </div>
+                <h3
+                    style={{ color: dark ? 'rgba(255,255,255,0.9)' : '#1e293b' }}
+                    className="font-bold tracking-wide text-sm"
+                >
+                    Team Chat
+                </h3>
             </div>
 
             <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
                 <AnimatePresence>
-                    {messages.map((msg, i) => (
-                        <motion.div
-                            key={i}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className={`p-2 rounded-xl text-sm ${msg.user === userName ? 'bg-blue-500/20 ml-4 border border-blue-500/30' : 'bg-white/5 mr-4 border border-white/10'}`}
-                        >
-                            <span className="block text-[10px] opacity-50 mb-1">{msg.user}</span>
-                            <p className="text-white/80">{msg.text}</p>
-                        </motion.div>
-                    ))}
+                    {messages.map((msg, i) => {
+                        const isMe = msg.userName === userName;
+                        return (
+                            <motion.div
+                                key={i}
+                                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+                            >
+                                <span
+                                    style={{ color: dark ? 'rgba(255,255,255,0.4)' : '#94a3b8' }}
+                                    className="text-[9px] font-bold mb-1 px-1"
+                                >
+                                    {isMe ? 'You' : msg.userName}
+                                </span>
+                                <div
+                                    style={isMe
+                                        ? { background: dark ? '#4f46e5' : '#4f46e5', color: '#fff' }
+                                        : {
+                                            background: dark ? 'rgba(255,255,255,0.08)' : '#f8fafc',
+                                            color: dark ? 'rgba(255,255,255,0.9)' : '#334155',
+                                            borderColor: dark ? 'rgba(255,255,255,0.05)' : '#e2e8f0',
+                                        }
+                                    }
+                                    className={`p-3 rounded-2xl max-w-[90%] text-sm shadow-sm border ${isMe ? 'rounded-tr-sm' : 'rounded-tl-sm'}`}
+                                >
+                                    <p className="leading-relaxed">{msg.message}</p>
+                                </div>
+                            </motion.div>
+                        );
+                    })}
                 </AnimatePresence>
             </div>
 
-            <div className="mt-4 flex gap-2">
+            <div
+                style={{
+                    background: dark ? 'rgba(255,255,255,0.05)' : '#f8fafc',
+                    borderColor: dark ? 'rgba(255,255,255,0.08)' : '#e2e8f0',
+                }}
+                className="mt-4 flex gap-2 items-center p-1.5 rounded-xl border transition-colors shadow-inner"
+            >
                 <input
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
                     placeholder="Type a message..."
-                    className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500/50 transition-colors"
+                    style={{
+                        color: dark ? '#ffffff' : '#334155',
+                        caretColor: dark ? '#818cf8' : '#4f46e5',
+                    }}
+                    className="flex-1 bg-transparent px-3 py-2 text-sm focus:outline-none placeholder:font-medium placeholder:text-slate-400"
                 />
                 <button
                     onClick={sendMessage}
-                    className="bg-blue-500 hover:bg-blue-400 text-white p-2 rounded-xl transition-colors shadow-lg shadow-blue-500/20"
+                    disabled={!input.trim()}
+                    className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white p-2.5 rounded-lg transition-all shadow-lg active:scale-95 flex-shrink-0"
                 >
-                    <Send size={18} />
+                    <Send size={16} />
                 </button>
             </div>
         </div>

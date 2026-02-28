@@ -6,7 +6,7 @@ import Dashboard from './components/Dashboard';
 import SignInPage from './components/ui/travel-connect-signin-1';
 import { initRoom } from './store/yjsSetup';
 
-function WhiteboardRoom() {
+function WhiteboardRoom({ isDarkMode }: { isDarkMode: boolean }) {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
   const [isInitialized, setIsInitialized] = useState(false);
@@ -25,20 +25,36 @@ function WhiteboardRoom() {
   return (
     <>
       <div className="app-container">
-        <Whiteboard />
+        <Whiteboard isDarkModeGlobal={isDarkMode} />
       </div>
     </>
   );
 }
 
 export default function App() {
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) return savedTheme === 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
+
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/room/:roomId" element={<WhiteboardRoom />} />
+        <Route path="/room/:roomId" element={<WhiteboardRoom isDarkMode={isDarkMode} />} />
         <Route path="/login" element={<SignInPage />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Dashboard isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />} />
       </Routes>
     </BrowserRouter>
   );
