@@ -6,20 +6,35 @@ export const getDashboard = async (req: Request, res: Response) => {
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     try {
-        const myBoards = await prisma.board.findMany({
-            where: { ownerId: userId },
+        const activeNow = await prisma.board.findMany({
+            where: {
+                sessions: { some: { isActive: true } },
+                OR: [
+                    { ownerId: userId },
+                    { collaborators: { some: { id: userId } } }
+                ]
+            },
             include: { sessions: { where: { isActive: true } } },
         });
 
+        const myBoards = await prisma.board.findMany({
+            where: {
+                ownerId: userId,
+                isSaved: true
+            },
+        });
+
         const sharedWithMe = await prisma.board.findMany({
-            where: { collaborators: { some: { id: userId } } },
-            include: { sessions: { where: { isActive: true } } },
+            where: {
+                collaborators: { some: { id: userId } },
+                isSaved: true
+            },
         });
 
         res.json({
             myBoards,
             sharedWithMe,
-            activeNow: [...myBoards, ...sharedWithMe].filter(b => b.sessions.length > 0),
+            activeNow,
         });
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch dashboard' });

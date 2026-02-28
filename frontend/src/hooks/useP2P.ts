@@ -1,23 +1,52 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import * as Y from 'yjs';
-import { WebrtcProvider } from 'y-webrtc';
+import { io } from 'socket.io-client';
+
+const SOCKET_URL = 'http://localhost:5001';
 
 export const useP2P = (roomId: string) => {
     const ydoc = useMemo(() => new Y.Doc(), []);
-    const [provider, setProvider] = useState<WebrtcProvider | null>(null);
 
     useEffect(() => {
-        const newProvider = new WebrtcProvider(roomId, ydoc, {
-            signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com'],
+        const newSocket = io(SOCKET_URL);
+        newSocket.emit('join-room', { roomId, userName: 'System-Yjs', color: '#000' });
+
+        // Apply incoming Yjs updates
+        newSocket.on('yjs-update', (updateBuffer: ArrayBuffer) => {
+            Y.applyUpdate(ydoc, new Uint8Array(updateBuffer), 'socket');
         });
 
-        setProvider(newProvider);
+        // Broadcast local Yjs updates
+        const handleUpdate = (update: Uint8Array, origin: any) => {
+            if (origin !== 'socket') {
+                newSocket.emit('yjs-update', { roomId, update });
+            }
+        };
+
+        ydoc.on('update', handleUpdate);
+
+        // State Synchronization for new peers
+        newSocket.emit('request-yjs-state', roomId);
+
+        newSocket.on('send-yjs-state', () => {
+            // Convert local Yjs state to a massive update and broadcast it
+            const stateVector = Y.encodeStateAsUpdate(ydoc);
+            newSocket.emit('yjs-update', { roomId, update: stateVector });
+        });
 
         return () => {
-            newProvider.destroy();
+            ydoc.off('update', handleUpdate);
+            newSocket.disconnect();
             ydoc.destroy();
         };
     }, [roomId, ydoc]);
 
-    return { ydoc, provider, awareness: provider?.awareness };
+    // Return a mock awareness to avoid breaking anything that still expects provider.awareness
+    const mockAwareness = {
+        setLocalStateField: () => { },
+        getStates: () => new Map()
+    };
+
+    return { ydoc, provider: null, awareness: mockAwareness };
 };
+
