@@ -242,7 +242,7 @@ export const SignInCard = () => {
         const payload = isSignup ? { email, password, name } : { email, password };
 
         try {
-            const response = await fetch(`http://localhost:5001/api/auth/${endpoint}`, {
+            const response = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001'}/api/auth/${endpoint}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),

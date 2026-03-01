@@ -53,7 +53,7 @@ export function Whiteboard({ isDarkModeGlobal }: { isDarkModeGlobal: boolean }) 
             // Snapshot current whiteboard elements from Yjs
             const elements = Array.from(yElements.values());
 
-            const res = await fetch(`http://localhost:5001/api/sessions/${roomId}/save`, {
+            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001'}/api/sessions/${roomId}/save`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -74,7 +74,7 @@ export function Whiteboard({ isDarkModeGlobal }: { isDarkModeGlobal: boolean }) 
     // Load saved whiteboard data from DB on mount (restores across sessions)
     useEffect(() => {
         if (!token || !roomId) return;
-        fetch(`http://localhost:5001/api/sessions/${roomId}`, {
+        fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001'}/api/sessions/${roomId}`, {
             headers: { 'Authorization': `Bearer ${token}` },
         })
             .then(r => r.ok ? r.json() : null)

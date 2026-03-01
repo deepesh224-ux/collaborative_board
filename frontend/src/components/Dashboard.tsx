@@ -19,7 +19,7 @@ import {
 
 import { useAuth } from '../context/AuthContext';
 
-const API_BASE = 'http://localhost:5001/api';
+const API_BASE = `${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001'}/api`;
 
 export default function Dashboard({ isDarkMode, setIsDarkMode }: { isDarkMode: boolean, setIsDarkMode: (val: boolean) => void }) {
     const { user, token, logout } = useAuth();

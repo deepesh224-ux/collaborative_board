@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Video, VideoOff, Mic, MicOff, PhoneOff } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = 'http://localhost:5001';
+const SOCKET_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
 
 export const VideoCall = ({ roomId, userName, isDark }: {
     roomId: string;
