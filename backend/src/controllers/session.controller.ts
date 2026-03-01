@@ -1,13 +1,17 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import prisma from '../lib/prisma';
+import { AuthRequest } from '../middleware/auth.middleware';
 
-export const createSession = async (req: Request, res: Response) => {
-    const { name, ownerId } = req.body;
+export const createSession = async (req: AuthRequest, res: Response) => {
+    const { name } = req.body;
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
     try {
         const board = await prisma.board.create({
             data: {
                 name: name || 'Untitled Board',
-                ownerId,
+                ownerId: userId,
             },
         });
         const session = await prisma.session.create({
@@ -22,7 +26,7 @@ export const createSession = async (req: Request, res: Response) => {
     }
 };
 
-export const getSession = async (req: Request, res: Response) => {
+export const getSession = async (req: AuthRequest, res: Response) => {
     const id = req.params.id as string;
     try {
         const board = await prisma.board.findUnique({
@@ -43,9 +47,11 @@ export const getSession = async (req: Request, res: Response) => {
     }
 };
 
-export const joinSession = async (req: Request, res: Response) => {
+export const joinSession = async (req: AuthRequest, res: Response) => {
     const id = req.params.id as string;
-    const { userId } = req.body;
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
     try {
         const board = await prisma.board.update({
             where: { id },
@@ -60,9 +66,9 @@ export const joinSession = async (req: Request, res: Response) => {
     }
 };
 
-export const updateSessionData = async (req: Request, res: Response) => {
+export const updateSessionData = async (req: AuthRequest, res: Response) => {
     const id = req.params.id as string;
-    const { data } = req.body; // CRDT update or Full state
+    const { data } = req.body;
     try {
         const board = await prisma.board.update({
             where: { id },
@@ -75,9 +81,14 @@ export const updateSessionData = async (req: Request, res: Response) => {
     }
 };
 
-export const deleteSession = async (req: Request, res: Response) => {
+export const deleteSession = async (req: AuthRequest, res: Response) => {
     const id = req.params.id as string;
+    const userId = req.userId;
     try {
+        const board = await prisma.board.findUnique({ where: { id } });
+        if (!board) return res.status(404).json({ error: 'Board not found' });
+        if (board.ownerId !== userId) return res.status(403).json({ error: 'Forbidden' });
+
         await prisma.board.delete({
             where: { id },
         });
@@ -88,14 +99,23 @@ export const deleteSession = async (req: Request, res: Response) => {
     }
 };
 
-export const saveSession = async (req: Request, res: Response) => {
+export const saveSession = async (req: AuthRequest, res: Response) => {
     const id = req.params.id as string;
+    const userId = req.userId;
+    const { data } = req.body; // whiteboard elements from frontend
     try {
-        const board = await prisma.board.update({
+        const board = await prisma.board.findUnique({ where: { id } });
+        if (!board) return res.status(404).json({ error: 'Board not found' });
+        if (board.ownerId !== userId) return res.status(403).json({ error: 'Forbidden' });
+
+        const updatedBoard = await prisma.board.update({
             where: { id },
-            data: { isSaved: true },
+            data: {
+                isSaved: true,
+                ...(data !== undefined ? { data } : {}),
+            },
         });
-        res.json({ message: 'Project saved to dashboard', board });
+        res.json({ message: 'Project saved to dashboard', board: updatedBoard });
     } catch (error) {
         console.error('Error saving board:', error);
         res.status(500).json({ error: 'Failed to save board' });
