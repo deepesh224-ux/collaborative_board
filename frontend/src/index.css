@@ -123,6 +123,19 @@
     color: hsl(var(--foreground));
     min-height: 100vh;
   }
+
+  button,
+  a,
+  [role="button"],
+  .cursor-pointer,
+  .excalidraw button,
+  .excalidraw .Island button,
+  .excalidraw .sidebar-trigger,
+  .excalidraw .dropdown-menu-item,
+  input[type="checkbox"],
+  input[type="radio"] {
+    cursor: pointer !important;
+  }
 }
 
 .app-container {

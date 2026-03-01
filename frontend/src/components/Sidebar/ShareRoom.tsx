@@ -35,7 +35,7 @@ export const ShareRoom = ({ roomId, isDark }: { roomId: string; isDark?: boolean
                 background: dark ? 'rgba(255,255,255,0.05)' : '#ffffff',
                 borderColor: dark ? 'rgba(255,255,255,0.12)' : '#e2e8f0',
             }}
-            className="w-full p-4 rounded-2xl flex flex-col gap-3 border shadow-xl transition-colors"
+            className="w-full p-4 rounded-2xl flex flex-col gap-3 border shadow-xl transition-colors flex-shrink-0"
         >
             <div
                 style={{ borderBottomColor: dark ? 'rgba(255,255,255,0.08)' : '#f1f5f9' }}

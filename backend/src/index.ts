@@ -6,22 +6,26 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import sessionRoutes from './routes/session';
 import userRoutes from './routes/user';
+import authRoutes from './routes/auth';
 
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.use(cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:5173"
+}));
 app.use(express.json());
 
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: "http://localhost:5173",
+        origin: process.env.FRONTEND_URL || "http://localhost:5173",
         methods: ["GET", "POST"]
     }
 });
 
 // Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/user', userRoutes);
 
@@ -31,7 +35,7 @@ const roomsData: Record<string, any> = {};
 io.on('connection', (socket) => {
     console.log('A user connected:', socket.id);
 
-    socket.on('join-room', async ({ roomId, userName, color }) => {
+    socket.on('join-room', async ({ roomId, userName, color, userId }) => {
         socket.join(roomId);
 
         // Track user in room
@@ -43,8 +47,45 @@ io.on('connection', (socket) => {
         // Notify others about the new participant
         socket.to(roomId).emit('user-joined', { socketId: socket.id, userName, color });
 
-        // Send current participants list to the new user
-        // (In a real app, you'd manage this state more robustly)
+        // Persist the user as a collaborator on this board (for Shared page)
+        // Only add if they are a real authenticated user and not the owner
+        if (userId) {
+            try {
+                const board = await prisma.board.findUnique({ where: { id: roomId } });
+                if (board && board.ownerId !== userId) {
+                    await prisma.board.update({
+                        where: { id: roomId },
+                        data: {
+                            collaborators: {
+                                connect: { id: userId },
+                            },
+                        },
+                    });
+                }
+            } catch (err) {
+                // Board might not exist yet or user already connected — ignore silently
+            }
+        }
+
+        // Send saved chat history to the newly joined user
+        try {
+            const history = await prisma.chatMessage.findMany({
+                where: { boardId: roomId },
+                orderBy: { createdAt: 'asc' },
+                take: 100,
+            });
+            if (history.length > 0) {
+                socket.emit('chat-history', history.map(m => ({
+                    roomId: m.boardId,
+                    userName: m.userName,
+                    message: m.message,
+                    timestamp: m.createdAt,
+                })));
+            }
+        } catch (err) {
+            console.error('Failed to load chat history:', err);
+        }
+
         console.log(`User ${userName} joined room ${roomId}. Total: ${roomsData[roomId].length}`);
     });
 
@@ -56,8 +97,20 @@ io.on('connection', (socket) => {
         socket.to(roomId).emit('burst-ping-received', { x, y, color });
     });
 
-    socket.on('chat-message', ({ roomId, message, userName }) => {
-        io.to(roomId).emit('chat-message-received', { message, userName, timestamp: new Date() });
+    socket.on('chat-message', async ({ roomId, message, userName }) => {
+        const timestamp = new Date();
+
+        // Persist to DB
+        try {
+            await prisma.chatMessage.create({
+                data: { boardId: roomId, userName, message },
+            });
+        } catch (err) {
+            console.error('Failed to save chat message:', err);
+        }
+
+        // Broadcast to everyone else in the room (sender sees it via optimistic update)
+        socket.to(roomId).emit('chat-message-received', { roomId, message, userName, timestamp });
     });
 
     socket.on('disconnect', async () => {
@@ -93,6 +146,7 @@ io.on('connection', (socket) => {
     // Whiteboard Sync (Custom Yjs over Socket.io)
     socket.on('yjs-update', ({ roomId, update }) => {
         // Broadcast the update to all other users in the room
+        // The update is a Buffer/ArrayBuffer
         socket.to(roomId).emit('yjs-update', update);
     });
 
