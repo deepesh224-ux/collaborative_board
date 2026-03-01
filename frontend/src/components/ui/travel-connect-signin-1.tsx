@@ -253,11 +253,11 @@ export const SignInCard = () => {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.5 }}
-                className="w-full max-w-4xl overflow-hidden rounded-2xl flex bg-white shadow-xl"
+                className="w-full max-w-4xl overflow-hidden rounded-2xl flex glass-panel shadow-2xl border border-white/50"
             >
                 {/* Left side - Map */}
-                <div className="hidden md:block w-1/2 h-[600px] relative overflow-hidden border-r border-gray-100">
-                    <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-100">
+                <div className="hidden md:block w-1/2 h-[600px] relative overflow-hidden border-r border-white/30">
+                    <div className="absolute inset-0 bg-white/20 backdrop-blur-[2px]">
                         <DotMap />
 
                         {/* Logo and text overlay */}
@@ -293,7 +293,7 @@ export const SignInCard = () => {
                 </div>
 
                 {/* Right side - Sign In Form */}
-                <div className="w-full md:w-1/2 p-8 md:p-10 flex flex-col justify-center bg-white">
+                <div className="w-full md:w-1/2 p-8 md:p-10 flex flex-col justify-center bg-white/40 backdrop-blur-md">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -305,7 +305,7 @@ export const SignInCard = () => {
                         <div className="mb-6">
                             <button
                                 type="button"
-                                className="w-full flex items-center justify-center gap-2 bg-gray-50 border border-gray-200 rounded-lg p-3 hover:bg-gray-100 transition-all duration-300 text-gray-700 shadow-sm"
+                                className="w-full flex items-center justify-center gap-2 bg-white/50 border border-white/60 rounded-lg p-3 hover:bg-white/70 transition-all duration-300 text-gray-700 shadow-sm"
                                 onClick={() => console.log("Google sign-in")}
                             >
                                 <svg className="h-5 w-5" width="20" height="20" viewBox="0 0 24 24">
@@ -334,10 +334,10 @@ export const SignInCard = () => {
 
                         <div className="relative my-6">
                             <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-gray-200"></div>
+                                <div className="w-full border-t border-gray-300/50"></div>
                             </div>
                             <div className="relative flex justify-center text-sm">
-                                <span className="px-2 bg-white text-gray-500">or</span>
+                                <span className="px-2 bg-transparent text-gray-600 font-medium">or</span>
                             </div>
                         </div>
 
@@ -353,7 +353,7 @@ export const SignInCard = () => {
                                     onChange={(e) => setEmail(e.target.value)}
                                     placeholder="Enter your email address"
                                     required
-                                    className="bg-gray-50 border-gray-200 placeholder:text-gray-400 text-gray-800 w-full focus:border-blue-500 focus:ring-blue-500"
+                                    className="bg-white/50 backdrop-blur-sm border-white/60 placeholder:text-gray-500 text-gray-800 w-full focus:border-blue-500 focus:ring-blue-500"
                                 />
                             </div>
 
@@ -369,7 +369,7 @@ export const SignInCard = () => {
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="Enter your password"
                                         required
-                                        className="bg-gray-50 border-gray-200 placeholder:text-gray-400 text-gray-800 w-full pr-10 focus:border-blue-500 focus:ring-blue-500"
+                                        className="bg-white/50 backdrop-blur-sm border-white/60 placeholder:text-gray-500 text-gray-800 w-full pr-10 focus:border-blue-500 focus:ring-blue-500"
                                     />
                                     <button
                                         type="button"
@@ -430,7 +430,7 @@ export const SignInCard = () => {
 
 const Index = () => {
     return (
-        <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+        <div className="min-h-screen w-full flex items-center justify-center ombre-bg p-4 flex-col">
             <SignInCard />
         </div>
     );

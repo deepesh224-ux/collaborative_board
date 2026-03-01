@@ -471,9 +471,39 @@
 }
 
 /* Professional Landing Page Redesign */
+@keyframes ombreGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.ombre-bg {
+  /* Amberlight 14-1217 TCX (#e4c5b3) and Skyway 14-4112 TCX (#b2c2d4) */
+  background: linear-gradient(-45deg, #e4c5b3, #b2c2d4, #E2B8A1, #B4C6D5);
+  background-size: 400% 400%;
+  animation: ombreGradient 15s ease infinite;
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
 .landing-container {
   min-height: 100vh;
-  background: #FFFFFF;
+  /* Amberlight 14-1217 TCX (#e2c0a5) and Skyway 14-4112 TCX (#b2c3d4) */
+  background: linear-gradient(-45deg, #e4c5b3, #b2c2d4, #E2B8A1, #B4C6D5);
+  background-size: 400% 400%;
+  animation: ombreGradient 15s ease infinite;
   color: #1A1A1A;
   font-family: 'Outfit', 'Inter', sans-serif;
   display: flex;
@@ -486,10 +516,15 @@
   justify-content: space-between;
   align-items: center;
   padding: 24px 80px;
-  background: white;
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   margin: 0;
   border-radius: 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 .nav-links {
@@ -554,11 +589,20 @@
 .whiteboard-mockup-container {
   width: 100%;
   border-radius: 32px;
-  background: #F1F4F9;
-  padding: 4px;
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  padding: 12px;
   margin-bottom: 60px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 12px 40px rgba(31, 38, 135, 0.15);
   overflow: hidden;
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+}
+
+.whiteboard-mockup-container:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 50px rgba(31, 38, 135, 0.25);
 }
 
 .whiteboard-mockup-container img {
