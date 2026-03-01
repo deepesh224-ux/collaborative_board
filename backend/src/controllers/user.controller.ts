@@ -1,8 +1,9 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import prisma from '../lib/prisma';
+import { AuthRequest } from '../middleware/auth.middleware';
 
-export const getDashboard = async (req: Request, res: Response) => {
-    const userId = req.headers['user-id'] as string; // Placeholder for real auth
+export const getDashboard = async (req: AuthRequest, res: Response) => {
+    const userId = req.userId;
     if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
     try {
@@ -37,6 +38,7 @@ export const getDashboard = async (req: Request, res: Response) => {
             activeNow,
         });
     } catch (error) {
+        console.error('Dashboard Error:', error);
         res.status(500).json({ error: 'Failed to fetch dashboard' });
     }
 };
