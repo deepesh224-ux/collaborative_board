@@ -26,7 +26,7 @@ let currentYdoc: Y.Doc | null = null;
  * Initialize a room. Call this once when entering a whiteboard room.
  * Each call creates a fresh Yjs document and Socket.io connection for that room.
  */
-export function initRoom(roomId: string): YjsStore {
+export function initRoom(roomId: string, userId?: string): YjsStore {
     // Tear down any existing connection
     if (currentSocket) {
         currentSocket.disconnect();
@@ -46,7 +46,7 @@ export function initRoom(roomId: string): YjsStore {
 
     socket.on('connect', () => {
         console.log('[Yjs] Socket connected:', socket.id);
-        socket.emit('join-room', { roomId, userName: 'yjs-sync', color: '#6366f1' });
+        socket.emit('join-room', { roomId, userName: 'yjs-sync', color: '#6366f1', userId });
         // After joining, request the current state from any existing peers
         socket.emit('request-yjs-state', roomId);
     });

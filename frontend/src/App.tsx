@@ -19,16 +19,17 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function WhiteboardRoom({ isDarkMode }: { isDarkMode: boolean }) {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     if (roomId) {
-      initRoom(roomId);
+      initRoom(roomId, user?.id);
       setIsInitialized(true);
     } else {
       navigate('/');
     }
-  }, [roomId, navigate]);
+  }, [roomId, navigate, user?.id]);
 
   if (!isInitialized) return null;
 

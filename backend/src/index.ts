@@ -33,7 +33,7 @@ const roomsData: Record<string, any> = {};
 io.on('connection', (socket) => {
     console.log('A user connected:', socket.id);
 
-    socket.on('join-room', async ({ roomId, userName, color }) => {
+    socket.on('join-room', async ({ roomId, userName, color, userId }) => {
         socket.join(roomId);
 
         // Track user in room
@@ -45,12 +45,32 @@ io.on('connection', (socket) => {
         // Notify others about the new participant
         socket.to(roomId).emit('user-joined', { socketId: socket.id, userName, color });
 
+        // Persist the user as a collaborator on this board (for Shared page)
+        // Only add if they are a real authenticated user and not the owner
+        if (userId) {
+            try {
+                const board = await prisma.board.findUnique({ where: { id: roomId } });
+                if (board && board.ownerId !== userId) {
+                    await prisma.board.update({
+                        where: { id: roomId },
+                        data: {
+                            collaborators: {
+                                connect: { id: userId },
+                            },
+                        },
+                    });
+                }
+            } catch (err) {
+                // Board might not exist yet or user already connected — ignore silently
+            }
+        }
+
         // Send saved chat history to the newly joined user
         try {
             const history = await prisma.chatMessage.findMany({
                 where: { boardId: roomId },
                 orderBy: { createdAt: 'asc' },
-                take: 100, // last 100 messages
+                take: 100,
             });
             if (history.length > 0) {
                 socket.emit('chat-history', history.map(m => ({
