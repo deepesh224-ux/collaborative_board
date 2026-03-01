@@ -1,3 +1,5 @@
+##PPT & Video link
+- https://drive.google.com/drive/folders/1f3yvD1QWZyqiAdcGc5QbNKoNmVGEzTvL?usp=sharing
 # SyncCanvas: Distributed Real-Time Collaborative Whiteboard
 
 ## 🧠 The Problem Statement
