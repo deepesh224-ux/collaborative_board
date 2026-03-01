@@ -1,37 +1,44 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, MessageSquare } from 'lucide-react';
-import { io, Socket } from 'socket.io-client';
-
-const SOCKET_URL = 'http://localhost:5001';
+import { getStore } from '../../store/yjsSetup';
 
 export const Chat = ({ roomId, userName, isDark }: { roomId: string; userName: string; isDark?: boolean }) => {
     const [messages, setMessages] = useState<any[]>([]);
     const [input, setInput] = useState('');
     const scrollRef = useRef<HTMLDivElement>(null);
-    const socketRef = useRef<Socket | null>(null);
+
+    // Use unified socket from store
+    const { socket } = getStore();
 
     const dark = isDark ?? document.documentElement.classList.contains('dark');
 
     useEffect(() => {
-        const socket = io(SOCKET_URL);
-        socketRef.current = socket;
-
-        socket.emit('join-room', { roomId, userName, color: '#ffffff' });
-
-        socket.on('chat-message-received', (msg) => {
+        const handleChatMessage = (msg: any) => {
             setMessages((prev) => [...prev, msg]);
-        });
+        };
+
+        // Load persisted history when first joining the room
+        const handleChatHistory = (history: any[]) => {
+            setMessages(history);
+        };
+
+        socket.on('chat-message-received', handleChatMessage);
+        socket.on('chat-history', handleChatHistory);
 
         return () => {
-            socket.disconnect();
+            socket.off('chat-message-received', handleChatMessage);
+            socket.off('chat-history', handleChatHistory);
         };
-    }, [roomId, userName]);
+    }, [socket]);
 
     const sendMessage = () => {
-        if (!input.trim() || !socketRef.current) return;
-        const newMsg = { roomId, message: input, userName };
-        socketRef.current.emit('chat-message', newMsg);
+        if (!input.trim()) return;
+        const newMsg = { roomId, message: input, userName, timestamp: new Date() };
+        // Optimistically add sender's own message immediately
+        setMessages((prev) => [...prev, newMsg]);
+        // Broadcast to other peers
+        socket.emit('chat-message', { roomId, message: input, userName });
         setInput('');
     };
 
@@ -45,7 +52,7 @@ export const Chat = ({ roomId, userName, isDark }: { roomId: string; userName: s
                 background: dark ? 'rgba(255,255,255,0.04)' : '#ffffff',
                 borderColor: dark ? 'rgba(255,255,255,0.1)' : '#e2e8f0',
             }}
-            className="flex flex-col h-[400px] w-80 p-4 rounded-2xl overflow-hidden shadow-xl border transition-colors"
+            className="flex flex-col h-[400px] w-80 p-4 rounded-2xl overflow-hidden shadow-xl border transition-colors flex-shrink-0"
         >
             <div
                 style={{ borderBottomColor: dark ? 'rgba(255,255,255,0.08)' : '#f1f5f9' }}
@@ -69,6 +76,7 @@ export const Chat = ({ roomId, userName, isDark }: { roomId: string; userName: s
                 <AnimatePresence>
                     {messages.map((msg, i) => {
                         const isMe = msg.userName === userName;
+                        const displayName = msg.userName || 'Unknown';
                         return (
                             <motion.div
                                 key={i}
@@ -77,16 +85,16 @@ export const Chat = ({ roomId, userName, isDark }: { roomId: string; userName: s
                                 className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
                             >
                                 <span
-                                    style={{ color: dark ? 'rgba(255,255,255,0.4)' : '#94a3b8' }}
-                                    className="text-[9px] font-bold mb-1 px-1"
+                                    style={{ color: dark ? 'rgba(255,255,255,0.5)' : '#64748b' }}
+                                    className="text-[10px] font-semibold mb-1 px-1 tracking-wide"
                                 >
-                                    {isMe ? 'You' : msg.userName}
+                                    {isMe ? `${displayName} (you)` : displayName}
                                 </span>
                                 <div
                                     style={isMe
                                         ? { background: dark ? '#4f46e5' : '#4f46e5', color: '#fff' }
                                         : {
-                                            background: dark ? 'rgba(255,255,255,0.08)' : '#f8fafc',
+                                            background: dark ? 'rgba(255,255,255,0.08)' : '#f1f5f9',
                                             color: dark ? 'rgba(255,255,255,0.9)' : '#334155',
                                             borderColor: dark ? 'rgba(255,255,255,0.05)' : '#e2e8f0',
                                         }
