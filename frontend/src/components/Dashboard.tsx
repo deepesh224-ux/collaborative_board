@@ -4,7 +4,7 @@ import {
     Plus,
     Layout,
     History,
-    Settings,
+
     LogOut,
     Users,
     Search,
@@ -17,10 +17,12 @@ import {
     Link
 } from 'lucide-react';
 
+import { useAuth } from '../context/AuthContext';
+
 const API_BASE = 'http://localhost:5001/api';
-const MOCK_USER_ID = 'user_123';
 
 export default function Dashboard({ isDarkMode, setIsDarkMode }: { isDarkMode: boolean, setIsDarkMode: (val: boolean) => void }) {
+    const { user, token, logout } = useAuth();
     const navigate = useNavigate();
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -46,9 +48,10 @@ export default function Dashboard({ isDarkMode, setIsDarkMode }: { isDarkMode: b
     const [boardToDelete, setBoardToDelete] = useState<{ id: string, name: string } | null>(null);
 
     const fetchDashboard = async () => {
+        if (!token) return;
         try {
             const res = await fetch(`${API_BASE}/user/dashboard`, {
-                headers: { 'user-id': MOCK_USER_ID }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
             const result = await res.json();
             setData(result);
@@ -92,8 +95,11 @@ export default function Dashboard({ isDarkMode, setIsDarkMode }: { isDarkMode: b
         try {
             const res = await fetch(`${API_BASE}/sessions`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: newBoardName, ownerId: MOCK_USER_ID })
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ name: newBoardName })
             });
             const { board } = await res.json();
             setIsCreateModalOpen(false);
@@ -104,11 +110,40 @@ export default function Dashboard({ isDarkMode, setIsDarkMode }: { isDarkMode: b
         }
     };
 
+    const handleJoinBoard = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!joinSessionId.trim()) return;
+
+        try {
+            // First, check if the session exists and is accessible
+            const res = await fetch(`${API_BASE}/sessions/${joinSessionId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                // If it exists, attempt to join it
+                await fetch(`${API_BASE}/sessions/${joinSessionId}/join`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                setIsJoinModalOpen(false);
+                setJoinSessionId('');
+                navigate(`/room/${joinSessionId}`);
+            } else {
+                // Handle cases where the session doesn't exist or is not accessible
+                console.error('Failed to join board: Session not found or unauthorized');
+                // Optionally, show an error message to the user
+            }
+        } catch (err) {
+            console.error('Failed to join board:', err);
+        }
+    };
+
     const handleDeleteBoard = async () => {
         if (!boardToDelete) return;
         try {
             const res = await fetch(`${API_BASE}/sessions/${boardToDelete.id}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
             });
             if (res.ok) {
                 setIsDeleteModalOpen(false);
@@ -161,9 +196,13 @@ export default function Dashboard({ isDarkMode, setIsDarkMode }: { isDarkMode: b
 
                     <div>
                         <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest mb-3 px-2">Account</p>
-                        <button className="w-full flex items-center gap-3 px-3.5 py-2.5 text-[13px] font-bold text-slate-600 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-900/50 rounded-xl transition-all">
-                            <Settings className="w-4 h-4" />
-                            <span>Settings</span>
+
+                        <button
+                            onClick={() => logout()}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors rounded-xl"
+                        >
+                            <LogOut className="w-5 h-5" />
+                            <span className="font-medium">Sign Out</span>
                         </button>
                     </div>
                 </nav>
@@ -190,7 +229,7 @@ export default function Dashboard({ isDarkMode, setIsDarkMode }: { isDarkMode: b
                             DU
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-xs font-black text-slate-900 dark:text-zinc-100 truncate transition-colors duration-300">Demo User</p>
+                            <p className="text-xs font-black text-slate-900 dark:text-zinc-100 truncate transition-colors duration-300">{user?.name || 'User'}</p>
                             <p className="text-[9px] text-slate-400 dark:text-zinc-500 font-bold tracking-tight">Active Team Plan</p>
                         </div>
                     </div>
@@ -210,18 +249,28 @@ export default function Dashboard({ isDarkMode, setIsDarkMode }: { isDarkMode: b
                     <header className="flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12">
                         <div className="min-w-0">
                             <h2 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter">
-                                Welcome, <span className="text-indigo-600 dark:text-indigo-400">Demo</span>
+                                Welcome, <span className="text-indigo-600 dark:text-indigo-400">{user?.name?.split(' ')[0] || 'User'}</span>
                             </h2>
                             <p className="text-slate-400 dark:text-zinc-500 mt-1 text-sm font-medium max-w-xl leading-relaxed">Design, build, and share your creative ideas on a global scale.</p>
                         </div>
 
-                        <button
-                            onClick={() => setIsCreateModalOpen(true)}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-black flex items-center justify-center gap-2.5 shadow-xl shadow-indigo-100 dark:shadow-none transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap flex-shrink-0"
-                        >
-                            <Plus className="w-4 h-4 stroke-[3px]" />
-                            <span className="text-xs uppercase tracking-wider font-extrabold">Create New</span>
-                        </button>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            <button
+                                onClick={() => setIsJoinModalOpen(true)}
+                                className="bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 text-indigo-600 dark:text-indigo-400 border-2 border-indigo-200 dark:border-indigo-900 px-5 py-3 rounded-2xl font-black flex items-center justify-center gap-2 shadow-md transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap"
+                            >
+                                <Link className="w-4 h-4" />
+                                <span className="text-xs uppercase tracking-wider font-extrabold">Join Session</span>
+                            </button>
+
+                            <button
+                                onClick={() => setIsCreateModalOpen(true)}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-2xl font-black flex items-center justify-center gap-2 shadow-xl shadow-indigo-100 dark:shadow-none transition-all hover:scale-[1.02] active:scale-95 whitespace-nowrap"
+                            >
+                                <Plus className="w-4 h-4 stroke-[3px]" />
+                                <span className="text-xs uppercase tracking-wider font-extrabold">Create New</span>
+                            </button>
+                        </div>
                     </header>
 
                     {/* Search & Layout Controls */}
@@ -300,7 +349,7 @@ export default function Dashboard({ isDarkMode, setIsDarkMode }: { isDarkMode: b
                                                     </div>
                                                 </div>
 
-                                                {board.ownerId === MOCK_USER_ID && (
+                                                {board.ownerId === user?.id && (
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
@@ -395,7 +444,7 @@ export default function Dashboard({ isDarkMode, setIsDarkMode }: { isDarkMode: b
                                                 <h3 className="text-sm font-black text-slate-900 dark:text-zinc-100 tracking-tighter leading-tight mb-1.5 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors uppercase">{board.name}</h3>
                                                 <div className="flex items-center gap-2.5 text-[9px] font-black uppercase tracking-widest opacity-80">
                                                     <span className="text-slate-400 dark:text-zinc-500">{new Date(board.updatedAt).toLocaleDateString()}</span>
-                                                    {board.ownerId === MOCK_USER_ID ? (
+                                                    {board.ownerId === user?.id ? (
                                                         <span className="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-100 dark:border-indigo-900/50">Project Leader</span>
                                                     ) : (
                                                         <span className="text-slate-400 dark:text-zinc-500 bg-slate-50 dark:bg-neutral-900 px-2 py-0.5 rounded border border-slate-100 dark:border-neutral-800">Collaborator</span>
@@ -404,7 +453,7 @@ export default function Dashboard({ isDarkMode, setIsDarkMode }: { isDarkMode: b
                                             </div>
 
                                             {/* Delete Button */}
-                                            {board.ownerId === MOCK_USER_ID && (
+                                            {board.ownerId === user?.id && (
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
@@ -494,12 +543,7 @@ export default function Dashboard({ isDarkMode, setIsDarkMode }: { isDarkMode: b
                                 </div>
                             </div>
 
-                            <form onSubmit={(e) => {
-                                e.preventDefault();
-                                if (joinSessionId.trim()) {
-                                    navigate(`/room/${joinSessionId}`);
-                                }
-                            }}>
+                            <form onSubmit={handleJoinBoard}>
                                 <div className="mb-8">
                                     <input
                                         type="text"
