@@ -1,10 +1,20 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useParams, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useParams, useNavigate, Navigate } from 'react-router-dom';
 import { Whiteboard } from './components/Whiteboard';
 import { LandingPage } from './components/LandingPage';
 import Dashboard from './components/Dashboard';
 import SignInPage from './components/ui/travel-connect-signin-1';
 import { initRoom } from './store/yjsSetup';
+import { AuthProvider, useAuth } from './context/AuthContext';
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) return <div>Loading...</div>;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  return <>{children}</>;
+}
 
 function WhiteboardRoom({ isDarkMode }: { isDarkMode: boolean }) {
   const { roomId } = useParams<{ roomId: string }>();
@@ -23,11 +33,11 @@ function WhiteboardRoom({ isDarkMode }: { isDarkMode: boolean }) {
   if (!isInitialized) return null;
 
   return (
-    <>
+    <ProtectedRoute>
       <div className="app-container">
         <Whiteboard isDarkModeGlobal={isDarkMode} />
       </div>
-    </>
+    </ProtectedRoute>
   );
 }
 
@@ -49,13 +59,19 @@ export default function App() {
   }, [isDarkMode]);
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/room/:roomId" element={<WhiteboardRoom isDarkMode={isDarkMode} />} />
-        <Route path="/login" element={<SignInPage />} />
-        <Route path="/dashboard" element={<Dashboard isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />} />
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/room/:roomId" element={<WhiteboardRoom isDarkMode={isDarkMode} />} />
+          <Route path="/login" element={<SignInPage />} />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+            </ProtectedRoute>
+          } />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
