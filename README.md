@@ -47,8 +47,6 @@ We designed **SyncCanvas**, a real-time collaborative whiteboard that embraces d
 Beyond core whiteboard synchronization, this project includes several auxiliary systems that elevate it from a tech demo to a fully-fledged collaboration platform:
 
 - **Integrated Video Calling (WebRTC):** Users in a room can instantly connect via video directly inside the sidebar, enabling face-to-face brainstorming without switching apps.
-- **Real-Time Multiplayer Mini-Games:** Built seamlessly into the sidebar interface using Yjs CRDTs, allowing collaborators to break the ice or take a break with synchronized interactive games.
-- **Live User Presence & Mouse Tracking:** Broadcasts live cursor coordinates natively over WebSockets, allowing every participant to see exactly where others are pointing or drawing.
 - **Embedded Real-Time Chat:** A persistent, socket-driven chat interface overlaying the board for quick text-based communication that is saved automatically to the database.
 - **Unified Dark/Light Mode Engine:** A deeply integrated theming system that synchronizes Excalidraw's canvas palette seamlessly with the application's Tailwind CSS wrapping shell.
 
