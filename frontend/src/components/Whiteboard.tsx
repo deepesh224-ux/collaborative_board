@@ -7,18 +7,27 @@ import { VideoCall } from './Sidebar/VideoCall';
 import { ShareRoom } from './Sidebar/ShareRoom';
 import { MiniGames } from './Sidebar/MiniGames';
 import { UserList } from './presence/UserList';
-import { useP2P } from '../hooks/useP2P';
 import { Save, Loader2, Check, ArrowLeft } from 'lucide-react';
+
+import { useAuth } from '../context/AuthContext';
+import { getStore } from '../store/yjsSetup';
 
 // We maintain a reference to the Excalidraw API to update the scene from Yjs
 export function Whiteboard({ isDarkModeGlobal }: { isDarkModeGlobal: boolean }) {
+    const { user, token } = useAuth();
     const { roomId } = useParams<{ roomId: string }>();
     const navigate = useNavigate();
     const excalidrawAPI = useRef<any>(null);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { ydoc } = useP2P(`collaborative-whiteboard-${roomId || 'default'}`);
 
-    const [guestName] = useState(`Guest ${Math.random().toString(36).substring(2, 6)}`);
+    // Stable reference to store (getStore() returns same object per room session)
+    const store = getStore();
+    const { ydoc, yElements } = store;
+
+    // Lock flag: true while we're applying a remote update to Excalidraw
+    // This prevents the onChange handler from broadcasting the change back out
+    const isApplyingRemote = useRef(false);
+
+    const [guestName] = useState(user?.name || `Guest ${Math.random().toString(36).substring(2, 6)}`);
     const [selectedColor] = useState('#' + Math.floor(Math.random() * 16777215).toString(16));
 
     const [isSaving, setIsSaving] = useState(false);
@@ -37,14 +46,20 @@ export function Whiteboard({ isDarkModeGlobal }: { isDarkModeGlobal: boolean }) 
         }
     }, [isDarkMode]);
 
-    // Yjs shared map for elements
-    const yElements = ydoc.getMap<any>('elements');
-
     const handleSaveSession = async () => {
+        if (!token) return;
         setIsSaving(true);
         try {
+            // Snapshot current whiteboard elements from Yjs
+            const elements = Array.from(yElements.values());
+
             const res = await fetch(`http://localhost:5001/api/sessions/${roomId}/save`, {
-                method: 'PUT'
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ data: elements }),
             });
             if (res.ok) {
                 setIsSaved(true);
@@ -56,39 +71,67 @@ export function Whiteboard({ isDarkModeGlobal }: { isDarkModeGlobal: boolean }) 
         }
     };
 
-    // Sync from Yjs to Excalidraw
+    // Load saved whiteboard data from DB on mount (restores across sessions)
     useEffect(() => {
-        const handleSync = () => {
+        if (!token || !roomId) return;
+        fetch(`http://localhost:5001/api/sessions/${roomId}`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+        })
+            .then(r => r.ok ? r.json() : null)
+            .then(board => {
+                if (board?.data && Array.isArray(board.data) && board.data.length > 0) {
+                    ydoc.transact(() => {
+                        board.data.forEach((el: any) => {
+                            if (!yElements.has(el.id)) {
+                                yElements.set(el.id, el);
+                            }
+                        });
+                    }, 'local');
+                }
+            })
+            .catch(() => { }); // silently ignore if board not found
+    }, [roomId, token]);
+
+    // Sync INCOMING remote Yjs updates → Excalidraw canvas
+    useEffect(() => {
+        const handleRemoteSync = () => {
             if (!excalidrawAPI.current) return;
 
-            // Map Yjs map to array for Excalidraw
-            const yArray = Array.from(yElements.values());
+            const remoteElements = Array.from(yElements.values());
+            if (remoteElements.length === 0) return;
 
-            // basic reconciliation (for a production app, use actual CRDT merging strategies)
-            if (yArray.length > 0) {
-                excalidrawAPI.current.updateScene({ elements: yArray });
-            }
+            // Set the lock so onChange doesn't broadcast this back out
+            isApplyingRemote.current = true;
+            excalidrawAPI.current.updateScene({ elements: remoteElements });
+            // Release lock after a short tick (Excalidraw calls onChange async)
+            requestAnimationFrame(() => {
+                isApplyingRemote.current = false;
+            });
         };
 
-        yElements.observe(handleSync);
-        return () => yElements.unobserve(handleSync);
+        yElements.observe(handleRemoteSync);
+        return () => yElements.unobserve(handleRemoteSync);
     }, [yElements]);
 
-
+    // Sync LOCAL Excalidraw changes → Yjs
     const onChange = useCallback((elements: readonly any[], appState: any) => {
-        // Sync theme from Excalidraw to our local state if it changes
+        // Sync theme change
         if (appState.theme !== (isDarkMode ? 'dark' : 'light')) {
             setIsDarkMode(appState.theme === 'dark');
         }
 
+        // Skip if we're currently applying a remote update (prevent echo loop)
+        if (isApplyingRemote.current) return;
+
         ydoc.transact(() => {
             elements.forEach(el => {
                 const existing = yElements.get(el.id);
+                // Only write if element is new or has a higher version number
                 if (!existing || existing.version < el.version) {
                     yElements.set(el.id, el);
                 }
             });
-        });
+        }, 'local');
     }, [yElements, ydoc, isDarkMode]);
 
     // Use MutationObserver to hide Mermaid item and ? button whenever they appear in the DOM
