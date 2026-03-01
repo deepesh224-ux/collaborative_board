@@ -1,73 +1,110 @@
 import * as Y from 'yjs';
 import { io, Socket } from 'socket.io-client';
-import type { Path, StickyNote, TextShape, BasicShape } from '../types';
 
 const SOCKET_URL = 'http://localhost:5001';
 
-export const ydoc = new Y.Doc();
-
 export interface YjsStore {
     ydoc: Y.Doc;
-    provider: any;
-    awareness: any;
-    yPaths: Y.Map<Path>;
-    yNotes: Y.Map<StickyNote>;
-    yTexts: Y.Map<TextShape>;
-    yShapes: Y.Map<BasicShape>;
+    socket: Socket;
+    roomId: string;
+    yElements: Y.Map<any>;
+    awareness: {
+        setLocalStateField: (field: string, val: any) => void;
+        getStates: () => Map<number, any>;
+        clientID: number;
+        on: (event: string, cb: any) => void;
+        off: (event: string, cb: any) => void;
+    };
 }
 
 let store: YjsStore | null = null;
 let currentSocket: Socket | null = null;
-let currentUpdateHandler: any = null;
+let currentUpdateHandler: ((update: Uint8Array, origin: any) => void) | null = null;
+let currentYdoc: Y.Doc | null = null;
 
+/**
+ * Initialize a room. Call this once when entering a whiteboard room.
+ * Each call creates a fresh Yjs document and Socket.io connection for that room.
+ */
 export function initRoom(roomId: string): YjsStore {
+    // Tear down any existing connection
     if (currentSocket) {
-        if (currentUpdateHandler) {
-            ydoc.off('update', currentUpdateHandler);
-        }
         currentSocket.disconnect();
+        currentSocket = null;
+    }
+    if (currentYdoc && currentUpdateHandler) {
+        currentYdoc.off('update', currentUpdateHandler);
     }
 
-    const socket = io(SOCKET_URL);
+    // Create a brand-new Yjs doc for each room session
+    const ydoc = new Y.Doc();
+    currentYdoc = ydoc;
+
+    // Initialize socket and join room
+    const socket = io(SOCKET_URL, { transports: ['websocket'] });
     currentSocket = socket;
 
-    socket.emit('join-room', { roomId, userName: 'System-Store', color: '#000' });
-
-    socket.on('yjs-update', (updateBuffer: ArrayBuffer) => {
-        Y.applyUpdate(ydoc, new Uint8Array(updateBuffer), 'socket-store');
+    socket.on('connect', () => {
+        console.log('[Yjs] Socket connected:', socket.id);
+        socket.emit('join-room', { roomId, userName: 'yjs-sync', color: '#6366f1' });
+        // After joining, request the current state from any existing peers
+        socket.emit('request-yjs-state', roomId);
     });
 
+    // Receive incoming Yjs updates from other peers
+    socket.on('yjs-update', (data: any) => {
+        try {
+            let update: Uint8Array;
+            if (data instanceof Uint8Array) {
+                update = data;
+            } else if (data instanceof ArrayBuffer) {
+                update = new Uint8Array(data);
+            } else if (data && typeof data === 'object' && 'buffer' in data) {
+                // Node.js Buffer received from Socket.io
+                update = new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+            } else {
+                console.warn('[Yjs] Unknown update format:', typeof data);
+                return;
+            }
+            Y.applyUpdate(ydoc, update, 'remote');
+        } catch (e) {
+            console.error('[Yjs] Failed to apply update:', e);
+        }
+    });
+
+    // When a new peer joins, they ask for the full state – we send it
+    socket.on('send-yjs-state', () => {
+        const fullState = Y.encodeStateAsUpdate(ydoc);
+        socket.emit('yjs-update', { roomId, update: fullState });
+    });
+
+    // Broadcast our local Yjs updates to peers (skip updates that came from remote)
     currentUpdateHandler = (update: Uint8Array, origin: any) => {
-        if (origin !== 'socket-store') {
+        if (origin !== 'remote') {
             socket.emit('yjs-update', { roomId, update });
         }
     };
-
     ydoc.on('update', currentUpdateHandler);
 
-    socket.emit('request-yjs-state', roomId);
+    // Shared map for Excalidraw elements
+    const yElements = ydoc.getMap<any>('elements');
 
-    socket.on('send-yjs-state', () => {
-        const stateVector = Y.encodeStateAsUpdate(ydoc);
-        socket.emit('yjs-update', { roomId, update: stateVector });
-    });
+    // Mock awareness (no-op, socket-based presence handled in UserList)
+    const awareness = {
+        setLocalStateField: (_field: string, _val: any) => { },
+        getStates: () => new Map<number, any>(),
+        clientID: Math.floor(Math.random() * 0xFFFFFFFF),
+        on: (_e: string, _cb: any) => { },
+        off: (_e: string, _cb: any) => { },
+    };
 
-    const mockAwareness = { setLocalStateField: () => { }, getStates: () => new Map() };
-
-    const yPaths = ydoc.getMap<Path>('paths');
-    const yNotes = ydoc.getMap<StickyNote>('notes');
-    const yTexts = ydoc.getMap<TextShape>('texts');
-    const yShapes = ydoc.getMap<BasicShape>('shapes');
-
-    store = { ydoc, provider: null, awareness: mockAwareness, yPaths, yNotes, yTexts, yShapes };
+    store = { ydoc, socket, roomId, yElements, awareness };
     return store;
 }
 
 export function getStore(): YjsStore {
-    if (!store) throw new Error('Room not initialized');
+    if (!store) throw new Error('[Yjs] Store not initialized – call initRoom first.');
     return store;
 }
 
 export const generateId = () => Math.random().toString(36).substring(2, 9);
-
-
