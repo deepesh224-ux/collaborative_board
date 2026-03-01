@@ -134,7 +134,7 @@ export const VideoCall = ({ roomId, userName, isDark }: {
             <button
                 onClick={() => setIsActive(true)}
                 style={cardStyle}
-                className="w-full p-4 rounded-2xl flex items-center justify-center gap-2 transition-colors border shadow-sm"
+                className="w-full p-4 rounded-2xl flex items-center justify-center gap-2 transition-colors border shadow-sm flex-shrink-0"
             >
                 <Video size={18} style={{ color: dark ? '#4ade80' : '#16a34a' }} />
                 <span style={{ color: dark ? '#ffffff' : '#334155' }} className="font-medium text-sm">
@@ -145,7 +145,7 @@ export const VideoCall = ({ roomId, userName, isDark }: {
     }
 
     return (
-        <div style={cardStyle} className="w-80 p-4 rounded-2xl space-y-4 shadow-xl border transition-colors">
+        <div style={cardStyle} className="w-80 p-4 rounded-2xl space-y-4 shadow-xl border transition-colors flex-shrink-0">
             {/* Local Video */}
             <div
                 style={{ background: dark ? 'rgba(0,0,0,0.6)' : '#f1f5f9', borderColor: dark ? 'rgba(255,255,255,0.08)' : '#e2e8f0' }}
