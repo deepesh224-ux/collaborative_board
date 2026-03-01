@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users } from 'lucide-react';
-import { io } from 'socket.io-client';
-
-const SOCKET_URL = 'http://localhost:5001';
+import { getStore } from '../../store/yjsSetup';
 
 export const UserList = ({ roomId, userName, color, isDark }: {
     roomId: string;
@@ -12,16 +10,28 @@ export const UserList = ({ roomId, userName, color, isDark }: {
     isDark?: boolean;
 }) => {
     const [participants, setParticipants] = useState<any[]>([]);
+
+    // Use unified socket from store
+    const { socket } = getStore();
+
     const dark = isDark ?? document.documentElement.classList.contains('dark');
 
     useEffect(() => {
-        const newSocket = io(SOCKET_URL);
-        newSocket.emit('join-room', { roomId, userName, color });
-        newSocket.on('user-joined', (user) => {
-            setParticipants(prev => [...prev.filter(u => u.socketId !== user.socketId), user]);
-        });
-        return () => { newSocket.disconnect(); };
-    }, [roomId, userName, color]);
+        // Emit join update for current user on the unified socket
+        socket.emit('join-room', { roomId, userName, color });
+
+        const handleUserJoined = (user: any) => {
+            if (user.roomId === roomId || !user.roomId) { // Backend might not include roomId in broadcast if it's already in room
+                setParticipants(prev => [...prev.filter(u => u.socketId !== user.socketId), user]);
+            }
+        };
+
+        socket.on('user-joined', handleUserJoined);
+
+        return () => {
+            socket.off('user-joined', handleUserJoined);
+        };
+    }, [socket, roomId, userName, color]);
 
     return (
         <div
@@ -29,7 +39,7 @@ export const UserList = ({ roomId, userName, color, isDark }: {
                 background: dark ? 'rgba(255,255,255,0.04)' : '#ffffff',
                 borderColor: dark ? 'rgba(255,255,255,0.12)' : '#e2e8f0',
             }}
-            className="w-full px-4 py-3 rounded-2xl flex flex-col items-center gap-4 border transition-colors shadow-sm"
+            className="w-full px-4 py-3 rounded-2xl flex flex-col items-center gap-4 border transition-colors shadow-sm flex-shrink-0"
         >
             <div
                 style={{ borderBottomColor: dark ? 'rgba(255,255,255,0.08)' : '#f1f5f9' }}

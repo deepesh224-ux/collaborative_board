@@ -7,23 +7,32 @@ import { VideoCall } from './Sidebar/VideoCall';
 import { ShareRoom } from './Sidebar/ShareRoom';
 import { MiniGames } from './Sidebar/MiniGames';
 import { UserList } from './presence/UserList';
-import { useP2P } from '../hooks/useP2P';
 import { Save, Loader2, Check, ArrowLeft } from 'lucide-react';
 
-// We maintain a reference to the Excalidraw API to update the scene from Yjs
+import { useAuth } from '../context/AuthContext';
+import { getStore } from '../store/yjsSetup';
+
+// We maintain a reference to the Excalidraw API to update the scene from Socket
 export function Whiteboard({ isDarkModeGlobal }: { isDarkModeGlobal: boolean }) {
+    const { user, token } = useAuth();
     const { roomId } = useParams<{ roomId: string }>();
     const navigate = useNavigate();
     const excalidrawAPI = useRef<any>(null);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { ydoc } = useP2P(`collaborative-whiteboard-${roomId || 'default'}`);
 
-    const [guestName] = useState(`Guest ${Math.random().toString(36).substring(2, 6)}`);
+    // Stable reference to Socket.IO store
+    const store = getStore();
+    const { socket } = store;
+
+    const [guestName] = useState(user?.name || `Guest ${Math.random().toString(36).substring(2, 6)}`);
     const [selectedColor] = useState('#' + Math.floor(Math.random() * 16777215).toString(16));
 
     const [isSaving, setIsSaving] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(isDarkModeGlobal);
+
+    // Track versions locally to efficiently sync only exact deltas
+    const isUpdatingRemote = useRef(false);
+    const localElementsCache = useRef(new Map<string, number>());
 
     useEffect(() => {
         setIsDarkMode(isDarkModeGlobal);
@@ -37,14 +46,20 @@ export function Whiteboard({ isDarkModeGlobal }: { isDarkModeGlobal: boolean }) 
         }
     }, [isDarkMode]);
 
-    // Yjs shared map for elements
-    const yElements = ydoc.getMap<any>('elements');
-
     const handleSaveSession = async () => {
+        if (!token) return;
         setIsSaving(true);
         try {
-            const res = await fetch(`http://localhost:5001/api/sessions/${roomId}/save`, {
-                method: 'PUT'
+            // Snapshot current whiteboard elements
+            const elements = excalidrawAPI.current?.getSceneElements() || [];
+
+            const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001'}/api/sessions/${roomId}/save`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ data: elements }),
             });
             if (res.ok) {
                 setIsSaved(true);
@@ -56,58 +71,137 @@ export function Whiteboard({ isDarkModeGlobal }: { isDarkModeGlobal: boolean }) 
         }
     };
 
-    // Sync from Yjs to Excalidraw
+    // Load saved whiteboard data from DB on mount (restores across sessions)
     useEffect(() => {
-        const handleSync = () => {
+        if (!token || !roomId) return;
+        fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001'}/api/sessions/${roomId}`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+        })
+            .then(r => r.ok ? r.json() : null)
+            .then(board => {
+                if (board?.data && Array.isArray(board.data) && board.data.length > 0) {
+                    if (excalidrawAPI.current) {
+                        isUpdatingRemote.current = true;
+                        excalidrawAPI.current.updateScene({ elements: board.data });
+                        isUpdatingRemote.current = false;
+
+                        // Seed cache to distinguish future local changes
+                        board.data.forEach((el: any) => localElementsCache.current.set(el.id, el.version));
+                    }
+                }
+            })
+            .catch(() => { }); // silently ignore if board not found
+    }, [roomId, token]);
+
+    // Apply incremental INCOMING peer elements -> Excalidraw canvas securely
+    useEffect(() => {
+        if (!socket) return;
+
+        const handleDrawElements = (incomingElements: any[]) => {
             if (!excalidrawAPI.current) return;
+            const currentElements = excalidrawAPI.current.getSceneElements();
+            const elementsMap = new Map(currentElements.map((el: any) => [el.id, el]));
 
-            // Map Yjs map to array for Excalidraw
-            const yArray = Array.from(yElements.values());
+            let updated = false;
+            incomingElements.forEach((incoming: any) => {
+                const existing: any = elementsMap.get(incoming.id);
+                // Safe conflict resolution: apply only strictly newer variants
+                if (!existing || incoming.version > existing.version) {
+                    elementsMap.set(incoming.id, incoming);
+                    // Update cache to avoid mistakenly sending it back repeatedly
+                    localElementsCache.current.set(incoming.id, incoming.version);
+                    updated = true;
+                }
+            });
 
-            // basic reconciliation (for a production app, use actual CRDT merging strategies)
-            if (yArray.length > 0) {
-                excalidrawAPI.current.updateScene({ elements: yArray });
+            if (updated) {
+                isUpdatingRemote.current = true;
+                excalidrawAPI.current.updateScene({ elements: Array.from(elementsMap.values()) });
+                isUpdatingRemote.current = false;
             }
         };
 
-        yElements.observe(handleSync);
-        return () => yElements.unobserve(handleSync);
-    }, [yElements]);
+        const handleRequestState = (targetSocketId: string) => {
+            if (!excalidrawAPI.current) return;
+            const elements = excalidrawAPI.current.getSceneElements();
+            if (elements.length > 0) {
+                socket.emit('send-full-state', { target: targetSocketId, elements });
+            }
+        };
 
+        const handleFullState = (elements: any[]) => {
+            if (!excalidrawAPI.current) return;
+            isUpdatingRemote.current = true;
+            excalidrawAPI.current.updateScene({ elements });
+            isUpdatingRemote.current = false;
 
+            elements.forEach((el: any) => localElementsCache.current.set(el.id, el.version));
+        };
+
+        socket.on('draw-elements', handleDrawElements);
+        socket.on('request-full-state', handleRequestState);
+        socket.on('full-state', handleFullState);
+
+        // Tell the room we just arrived and need current state
+        socket.emit('request-board-state', roomId);
+
+        return () => {
+            socket.off('draw-elements', handleDrawElements);
+            socket.off('request-full-state', handleRequestState);
+            socket.off('full-state', handleFullState);
+        };
+    }, [socket, roomId]);
+
+    // Identify LOCAL incremental changes -> Broadcast OUT to peers
     const onChange = useCallback((elements: readonly any[], appState: any) => {
-        // Sync theme from Excalidraw to our local state if it changes
+        // Sync theme change
         if (appState.theme !== (isDarkMode ? 'dark' : 'light')) {
             setIsDarkMode(appState.theme === 'dark');
         }
 
-        ydoc.transact(() => {
-            elements.forEach(el => {
-                const existing = yElements.get(el.id);
-                if (!existing || existing.version < el.version) {
-                    yElements.set(el.id, el);
-                }
-            });
+        // Extremely critical guard: Skip processing if we are drawing purely remote data
+        if (isUpdatingRemote.current) return;
+
+        const changedElements = elements.filter(el => {
+            const lastVersion = localElementsCache.current.get(el.id) || 0;
+            if (el.version > lastVersion) {
+                localElementsCache.current.set(el.id, el.version);
+                return true;
+            }
+            return false;
         });
-    }, [yElements, ydoc, isDarkMode]);
+
+        if (changedElements.length > 0) {
+            socket.emit('draw-elements', { roomId, elements: changedElements });
+            setIsSaved(false); // Map modified so unsaved changes exist
+        }
+    }, [roomId, socket, isDarkMode]);
+
+    const onPointerUpdate = useCallback((payload: any) => {
+        if (!socket) return;
+        socket.emit('cursor-move', {
+            roomId,
+            x: payload.pointer.x,
+            y: payload.pointer.y,
+            userName: guestName,
+            color: selectedColor
+        });
+    }, [roomId, socket, guestName, selectedColor]);
 
     // Use MutationObserver to hide Mermaid item and ? button whenever they appear in the DOM
     useEffect(() => {
         const hideMermaidAndHelp = () => {
-            // Walk all elements in the excalidraw container looking for Mermaid text
             document.querySelectorAll('.excalidraw li, .excalidraw button, .excalidraw .dropdown-menu-item').forEach((el) => {
                 const text = el.textContent?.trim() ?? '';
                 if (text.toLowerCase().includes('mermaid')) {
                     (el as HTMLElement).style.display = 'none';
                 }
             });
-            // Hide "Generate" group label
             document.querySelectorAll('.excalidraw .dropdown-menu-group-title, .excalidraw .Island > *').forEach((el) => {
                 if ((el as HTMLElement).textContent?.trim() === 'Generate') {
                     (el as HTMLElement).style.display = 'none';
                 }
             });
-            // Hide help/? button
             document.querySelectorAll<HTMLElement>(
                 '.excalidraw .help-icon, .excalidraw [aria-label="Help"], .excalidraw [data-testid="help-button"], .excalidraw button[title="Help"]'
             ).forEach(el => { el.style.display = 'none'; });
@@ -119,13 +213,13 @@ export function Whiteboard({ isDarkModeGlobal }: { isDarkModeGlobal: boolean }) 
         return () => observer.disconnect();
     }, []);
 
-
     return (
         <div className="flex h-screen w-screen overflow-hidden bg-slate-50 dark:bg-[#0f1115] transition-colors duration-300">
             <div className="relative flex-1 board-container h-full">
                 <Excalidraw
                     excalidrawAPI={(api) => excalidrawAPI.current = api}
                     onChange={onChange}
+                    onPointerUpdate={onPointerUpdate}
                     theme={isDarkMode ? 'dark' : 'light'}
                     initialData={{ appState: { theme: isDarkMode ? 'dark' : 'light' } }}
                     UIOptions={{

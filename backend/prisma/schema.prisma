@@ -19,17 +19,18 @@ model User {
 }
 
 model Board {
-  id            String    @id @default(uuid())
+  id            String        @id @default(uuid())
   name          String
   description   String?
   data          Json?
-  isSaved       Boolean   @default(false)
+  isSaved       Boolean       @default(false)
   ownerId       String
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  owner         User      @relation("Owner", fields: [ownerId], references: [id])
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  owner         User          @relation("Owner", fields: [ownerId], references: [id])
   sessions      Session[]
-  collaborators User[]    @relation("Shared")
+  collaborators User[]        @relation("Shared")
+  messages      ChatMessage[]
 
   @@index([ownerId], map: "Board_ownerId_fkey")
 }
@@ -43,4 +44,15 @@ model Session {
   board     Board     @relation(fields: [boardId], references: [id], onDelete: Cascade)
 
   @@index([boardId], map: "Session_boardId_fkey")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  boardId   String
+  userName  String
+  message   String   @db.Text
+  createdAt DateTime @default(now())
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@index([boardId])
 }
