@@ -143,16 +143,27 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Whiteboard Sync (Custom Yjs over Socket.io)
+    // Real-time Collaborative Board Sync
     socket.on('yjs-update', ({ roomId, update }) => {
-        // Broadcast the update to all other users in the room
-        // The update is a Buffer/ArrayBuffer
         socket.to(roomId).emit('yjs-update', update);
     });
 
     socket.on('request-yjs-state', (roomId) => {
-        // Ask others in the room to broadcast their full state vector for the newly joined user
         socket.to(roomId).emit('send-yjs-state');
+    });
+
+    socket.on('draw-elements', ({ roomId, elements }) => {
+        socket.to(roomId).emit('draw-elements', elements);
+    });
+
+    socket.on('request-board-state', (roomId) => {
+        // Ask one existing user to send the current canvas state back to the joiner
+        socket.to(roomId).emit('request-full-state', socket.id);
+    });
+
+    socket.on('send-full-state', ({ target, elements }) => {
+        // Send state back privately to the newly joined socket
+        socket.to(target).emit('full-state', elements);
     });
 
     // WebRTC Signaling
